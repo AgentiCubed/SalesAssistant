@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <title>Sales Coach</title>
+  <meta name="description" content="Prospecting & cold-call coach for TSRs" />
+
+  <!-- PWA / iPad home-screen -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Sales Coach" />
+  <meta name="theme-color" content="#14161a" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+
+  <!-- Premium typography: Sora (display) + Inter (text). Graceful system fallback offline. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Sora:wght@600;700;800&display=swap" />
+
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- ===== HEADER ===== -->
+  <header class="app-header">
+    <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">
+      <span class="tt-ico">◐</span>
+    </button>
+    <div class="brand">
+      <span class="brand-mark">●</span>
+      <span class="brand-name">Sales Coach</span>
+    </div>
+    <div class="brand-sub">Prospecting &amp; Cold Calls</div>
+  </header>
+
+  <!-- ===== COACH BAR ===== -->
+  <div id="coachBar" class="coach-bar">
+    <span class="coach-avatar">🎧</span>
+    <span id="coachLine" class="coach-line">Let's go find some business today.</span>
+  </div>
+
+  <!-- ===== VIEWS ===== -->
+  <main id="app">
+
+    <!-- HOME -->
+    <section id="view-home" class="view active">
+
+      <!-- Showroom hero: greeting + today's snapshot -->
+      <div class="hero">
+        <div class="hero-glow"></div>
+        <div class="hero-top">
+          <span id="heroEyebrow" class="hero-eyebrow">WÜRTH · FIELD SALES</span>
+          <span class="hero-date" id="heroDate"></span>
+        </div>
+        <h1 class="hero-title" id="heroGreeting">Let's go find some business.</h1>
+        <p class="hero-sub" id="heroSub">Your prospecting cockpit — pick a play and roll.</p>
+        <div class="hero-stats">
+          <div class="hero-stat"><span class="hs-num" id="hsProducts">103</span><span class="hs-lab">Products</span></div>
+          <div class="hero-stat"><span class="hs-num" id="hsCards">3</span><span class="hs-lab">Battle Cards</span></div>
+          <div class="hero-stat"><span class="hs-num" id="hsRoute">12</span><span class="hs-lab">Prospects</span></div>
+        </div>
+        <button class="hero-cta" data-go="route">🗺️ &nbsp;Plan today's route</button>
+      </div>
+
+      <div class="section-label">Your toolkit</div>
+      <div class="tile-grid">
+        <button class="tile" data-go="gameplan">
+          <span class="tile-ico">🎯</span>
+          <span class="tile-title">Daily Game Plan</span>
+          <span class="tile-desc">Pick a target, get a plan</span>
+        </button>
+        <button class="tile" data-go="anglefinder">
+          <span class="tile-ico">🧭</span>
+          <span class="tile-title">Angle Finder</span>
+          <span class="tile-desc">Any business → your hook</span>
+        </button>
+        <button class="tile" data-go="battlecards">
+          <span class="tile-ico">🃏</span>
+          <span class="tile-title">Battle Cards</span>
+          <span class="tile-desc">Real products &amp; demos</span>
+        </button>
+        <button class="tile" data-go="catalog">
+          <span class="tile-ico">🔎</span>
+          <span class="tile-title">Product Finder</span>
+          <span class="tile-desc">Search by name or art. #</span>
+        </button>
+        <button class="tile" data-go="playbook">
+          <span class="tile-ico">📋</span>
+          <span class="tile-title">Prospecting Playbook</span>
+          <span class="tile-desc">Find &amp; open ideal targets</span>
+        </button>
+        <button class="tile tile-soon" data-go="methodology">
+          <span class="tile-ico">🎓</span>
+          <span class="tile-title">Methodology <span class="soon-badge">Soon</span></span>
+          <span class="tile-desc">The “Persuade” coaching course</span>
+        </button>
+        <button class="tile" data-go="cockpit">
+          <span class="tile-ico">📞</span>
+          <span class="tile-title">Cold Call Cockpit</span>
+          <span class="tile-desc">Live-call talk tracks</span>
+        </button>
+        <button class="tile" data-go="objections">
+          <span class="tile-ico">🛡️</span>
+          <span class="tile-title">Objection Handling</span>
+          <span class="tile-desc">They say X → you say Y</span>
+        </button>
+        <button class="tile" data-go="precall">
+          <span class="tile-ico">✅</span>
+          <span class="tile-title">Pre-Call Checklist</span>
+          <span class="tile-desc">30-second prep</span>
+        </button>
+        <button class="tile tile-route" data-go="route">
+          <span class="tile-ico">🗺️</span>
+          <span class="tile-title">Prospecting Route</span>
+          <span class="tile-desc">Map your day &amp; drive it</span>
+        </button>
+        <button class="tile tile-accent" data-go="gameplan">
+          <span class="tile-ico">⚡</span>
+          <span class="tile-title">Quick Start</span>
+          <span class="tile-desc">Plan my next call now</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- DAILY GAME PLAN -->
+    <section id="view-gameplan" class="view">
+      <h2 class="view-title">Daily Game Plan</h2>
+      <p class="view-lead">Who are you walking into? Pick the type and I'll build your angle.</p>
+      <div id="custTypeGrid" class="chip-grid"></div>
+      <div id="gameplanOut" class="plan-out"></div>
+    </section>
+
+    <!-- ANGLE FINDER -->
+    <section id="view-anglefinder" class="view">
+      <h2 class="view-title">Angle Finder</h2>
+      <p class="view-lead">Don't box yourself in. ANY business burns something. Tap what you observe — get the hook.</p>
+      <div id="angleGrid" class="chip-grid"></div>
+      <div id="angleOut" class="plan-out"></div>
+    </section>
+
+    <!-- BATTLE CARDS -->
+    <section id="view-battlecards" class="view">
+      <h2 class="view-title">Battle Cards</h2>
+      <p class="view-lead">Real Würth products with the demo theater that closes. Tap a card.</p>
+      <div id="bcList" class="bc-list"></div>
+      <div id="bcDetail" class="bc-detail"></div>
+    </section>
+
+    <!-- PRODUCT FINDER -->
+    <section id="view-catalog" class="view">
+      <h2 class="view-title">Product Finder</h2>
+      <p class="view-lead">Search the real catalog by product name, category, or article number.</p>
+      <input id="catSearch" class="search" type="search" placeholder="Search: degreaser, 0893106050, grease…" />
+      <div id="catCats" class="chip-grid"></div>
+      <div id="catOut" class="cat-list"></div>
+    </section>
+
+    <!-- METHODOLOGY (placeholder — next iteration) -->
+    <section id="view-methodology" class="view">
+      <h2 class="view-title">Methodology — The “Persuade” Course</h2>
+      <div class="soon-hero">
+        <span class="soon-hero-ico">🎓</span>
+        <h3>Coming in the next iteration</h3>
+        <p>A guided coaching course built on Würth’s own sales training — Phil M. Jones’ <em>How to Persuade and Get Paid</em>. New reps will work through it step by step.</p>
+      </div>
+      <p class="view-lead" style="margin-top:18px;">Here’s a preview of what’s coming:</p>
+      <div id="methodPreview" class="accordion"></div>
+      <p class="soon-foot">This section is under active development for Iteration 2.</p>
+    </section>
+
+    <!-- PLAYBOOK -->
+    <section id="view-playbook" class="view">
+      <h2 class="view-title">Prospecting Playbook</h2>
+      <p class="view-lead">The fundamentals, in order. Master these and the calls get easy.</p>
+      <div id="playbookOut" class="accordion"></div>
+    </section>
+
+    <!-- COCKPIT -->
+    <section id="view-cockpit" class="view">
+      <h2 class="view-title">Cold Call Cockpit</h2>
+      <p class="view-lead">Your live-call flow. Glance, don't read. Be human.</p>
+      <div id="cockpitOut" class="flow-list"></div>
+    </section>
+
+    <!-- OBJECTIONS -->
+    <section id="view-objections" class="view">
+      <h2 class="view-title">Objection Handling</h2>
+      <p class="view-lead">Search what they hit you with. Steal the comeback.</p>
+      <input id="objSearch" class="search" type="search" placeholder="Search: price, supplier, time, budget…" />
+      <div id="objOut" class="obj-list"></div>
+    </section>
+
+    <!-- PROSPECTING ROUTE -->
+    <section id="view-route" class="view">
+      <h2 class="view-title">Prospecting Route</h2>
+      <p class="view-lead">Build your day on the map. Pick the shops you're hitting — I'll order them for the shortest drive, then hand it to your phone's nav for live turn-by-turn.</p>
+      <div id="routeSegments" class="chip-grid"></div>
+      <div id="routeMap" class="route-map"></div>
+      <div id="routeSummary" class="route-summary"></div>
+      <h3 class="route-subhead">Add prospects</h3>
+      <div id="prospectList" class="prospect-list"></div>
+    </section>
+
+    <!-- PRECALL -->
+    <section id="view-precall" class="view">
+      <h2 class="view-title">Pre-Call Checklist</h2>
+      <p class="view-lead">30 seconds before you walk in. Tap as you go.</p>
+      <ul id="precallOut" class="checklist"></ul>
+      <button id="precallReset" class="btn-ghost">Reset checklist</button>
+    </section>
+
+  </main>
+
+  <!-- ===== BOTTOM NAV ===== -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-go="home"><span>🏠</span>Home</button>
+    <button class="nav-btn" data-go="gameplan"><span>🎯</span>Plan</button>
+    <button class="nav-btn" data-go="anglefinder"><span>🧭</span>Angles</button>
+    <button class="nav-btn" data-go="route"><span>🗺️</span>Route</button>
+    <button class="nav-btn" data-go="cockpit"><span>📞</span>Call</button>
+  </nav>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/route.js"></script>
+  <script src="js/battlecards.js"></script>
+  <script src="js/catalog.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+    }
+  </script>
+</body>
+</html>
