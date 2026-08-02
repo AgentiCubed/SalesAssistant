@@ -27,9 +27,9 @@ brand-red palette, layered depth, refined motion. See
 
 ## Run locally
 ```bash
-# any static server works — it's a vanilla PWA
+# Any static server works, but ensure `manifest.webmanifest` is served with a manifest/content type.
+# (Python's built-in http.server may serve .webmanifest as application/octet-stream in some environments.)
 python3 -m http.server 8000
-# then open http://localhost:8000
 ```
 
 ## Stack
