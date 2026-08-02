@@ -27,9 +27,13 @@ brand-red palette, layered depth, refined motion. See
 
 ## Run locally
 ```bash
-# Any static server works, but ensure `manifest.webmanifest` is served with a manifest/content type.
-# (Python's built-in http.server may serve .webmanifest as application/octet-stream in some environments.)
-python3 -m http.server 8000
+# Use a server that serves `manifest.webmanifest` with the correct MIME type for PWA install testing.
+# `npx serve` handles this automatically and is the recommended option:
+npx serve .
+# Note: Python's built-in http.server often serves `.webmanifest` as `application/octet-stream`,
+# which causes browsers to ignore the manifest and skip PWA install prompts.
+# If you must use Python, open http://localhost:8000 and expect PWA install to be unavailable:
+#   python3 -m http.server 8000
 ```
 
 ## Stack
