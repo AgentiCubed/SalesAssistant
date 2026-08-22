@@ -1,5 +1,5 @@
 /* Sales Coach — offline service worker */
-const CACHE = "sales-coach-v13";
+const CACHE = "sales-coach-v14";
 const ASSETS = [
   "index.html",
   "css/styles.css",
