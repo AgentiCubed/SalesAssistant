@@ -417,6 +417,58 @@ function renderPresetHubs() {
 }
 
 /* ---------- CSV & JSON DATA IMPORT / EXPORT ---------- */
+
+/* ---------- DAILY ACTIVITY & MILEAGE LOG EXPORT ---------- */
+function exportDailyActivityLog() {
+  const ord = routeState.ordered;
+  if (!ord.length) {
+    alert("No stops in today's route to export.");
+    return;
+  }
+  const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
+  const miles = routeDistance(ord).toFixed(1);
+  const driveMin = Math.round((routeDistance(ord) / 35) * 60);
+  const visitedCount = ord.filter(p => routeState.visited.includes(p.id)).length;
+
+  const header = [
+    "SALES COACH — DAILY ACTIVITY & MILEAGE REPORT",
+    "Date," + dateStr,
+    "Starting Location," + '"' + (routeState.start.name || "").replace(/"/g, '""') + '"',
+    "Total Stops Planned," + ord.length,
+    "Stops Completed," + visitedCount,
+    "Total Route Miles," + miles + " miles",
+    "Estimated Drive Time," + driveMin + " minutes",
+    "",
+    "Stop #,Company Name,Category,Street Address,Direct Phone,Visited (Yes/No),Opportunities,Rep Call Notes & Follow-ups",
+  ];
+
+  const rows = ord.map((p, i) => {
+    const isDone = routeState.visited.includes(p.id) ? "YES" : "NO";
+    const noteData = getCustomerNote(p.id);
+    return [
+      (i + 1),
+      '"' + (p.name || "").replace(/"/g, '""') + '"',
+      '"' + (p.type || "").replace(/"/g, '""') + '"',
+      '"' + (p.addr || "").replace(/"/g, '""') + '"',
+      '"' + (p.phone || "").replace(/"/g, '""') + '"',
+      isDone,
+      '"' + (p.hot || "").replace(/"/g, '""') + '"',
+      '"' + (noteData.text || "").replace(/"/g, '""') + '"',
+    ].join(",");
+  });
+
+  const csvContent = "data:text/csv;charset=utf-8," + [header.join("\n"), ...rows].join("\n");
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  const filename = "Daily_Sales_Log_" + new Date().toISOString().slice(0, 10) + ".csv";
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast("Exported daily mileage and activity log to CSV");
+}
+
 function exportProspectsCSV() {
   const list = routeState.prospects;
   const headers = ["id", "name", "type", "seg", "lat", "lng", "addr", "phone", "hot"];
@@ -431,7 +483,7 @@ function exportProspectsCSV() {
     '"' + (p.phone || "").replace(/"/g, '""') + '"',
     '"' + (p.hot || "").replace(/"/g, '""') + '"',
   ].join(","));
-  const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\\n");
+  const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
   link.setAttribute("href", encodedUri);
@@ -465,10 +517,10 @@ function handleFileImport(file) {
         const parsed = JSON.parse(text);
         if (Array.isArray(parsed)) imported = parsed;
       } else {
-        const lines = text.split(/\\r\\n|\\n/).filter(l => l.trim().length > 0);
+        const lines = text.split(/\r\n|\n/).filter(l => l.trim().length > 0);
         if (lines.length > 1) {
           for (let i = 1; i < lines.length; i++) {
-            const parts = lines[i].match(/(".*?"|[^",\\s]+)(?=\\s*,|\\s*$)/g) || lines[i].split(",");
+            const parts = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || lines[i].split(",");
             if (parts && parts.length >= 7) {
               const clean = (s) => s ? s.replace(/^"|"$/g, "").trim() : "";
               imported.push({
@@ -773,7 +825,7 @@ function renderRouteSummary() {
   if (!out) return;
   const ord = routeState.ordered;
   if (!ord.length) {
-    out.innerHTML = '<div class="empty">No stops selected for today\\'s route. Check off accounts from the directory below to build your driving sheet.</div>';
+    out.innerHTML = '<div class="empty">No stops selected for today\'s route. Check off accounts from the directory below to build your driving sheet.</div>';
     return;
   }
   const miles = routeDistance(ord).toFixed(1);
@@ -833,14 +885,14 @@ function renderRouteSummary() {
       '</div>' +
       '<div class="run-sheet-actions">' +
         (manual ? '<button id="btnReopt" class="btn-text-action">Re-Optimize Shortest Drive</button>' : '') +
-        '<button id="btnPrintRunSheet" class="btn-text-action">Print Run Sheet</button>' +
+        '<button id="btnExportActivityLog" class="btn-text-action">Export Mileage & Activity Log (CSV)</button><button id="btnPrintRunSheet" class="btn-text-action">Print Run Sheet</button>' +
       '</div>' +
     '</div>' +
     '<ol class="stop-list" id="stopList">' + stops + '</ol>' +
     '<div class="full-nav-actions">' +
       '<button id="btnGoogle" class="btn-full-nav google">Start Entire Route in Google Maps</button>' +
       '<button id="btnApple" class="btn-full-nav apple">Start Entire Route in Apple Maps</button>' +
-      '<button id="btnClearRoute" class="btn-full-nav clear">Clear Today\\'s Route</button>' +
+      '<button id="btnClearRoute" class="btn-full-nav clear">Clear Today\'s Route</button>' +
     '</div>'
   );
 
@@ -875,6 +927,7 @@ function renderRouteSummary() {
     };
   }
 
+  const logBtn = $("#btnExportActivityLog"); if (logBtn) logBtn.onclick = exportDailyActivityLog;
   const printBtn = $("#btnPrintRunSheet");
   if (printBtn) {
     printBtn.onclick = () => window.print();
