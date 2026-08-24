@@ -40,7 +40,6 @@ const COACH_LINES = {
 const CUSTOMER_TYPES = [
   {
     id: "auto-body",
-    icon: "🚗",
     name: "Collision & Auto Body",
     painPoints: [
       "Dust contamination killing paint jobs",
@@ -61,7 +60,6 @@ const CUSTOMER_TYPES = [
   },
   {
     id: "heavy-duty-fleet",
-    icon: "🚛",
     name: "Heavy-Duty & Fleet",
     painPoints: [
       "DOT compliance panic — air brake leaks, lighting, reflective tape",
@@ -82,7 +80,6 @@ const CUSTOMER_TYPES = [
   },
   {
     id: "ag-equipment",
-    icon: "🚜",
     name: "Agriculture & Equipment",
     painPoints: [
       "Seasonal rush: planting/harvest downtime is $1,000s/hr",
@@ -103,7 +100,6 @@ const CUSTOMER_TYPES = [
   },
   {
     id: "general-auto-repair",
-    icon: "🔧",
     name: "Independent Auto Repair",
     painPoints: [
       "Multiple parts-store drivers dropping off mixed-quality junk",
@@ -124,7 +120,6 @@ const CUSTOMER_TYPES = [
   },
   {
     id: "municipality-schools",
-    icon: "🚌",
     name: "School Bus & Municipal Fleet",
     painPoints: [
       "State inspection deadlines — zero tolerance on rust, lights, seat tears",
@@ -145,7 +140,6 @@ const CUSTOMER_TYPES = [
   },
   {
     id: "manufacturing-mro",
-    icon: "🏭",
     name: "Manufacturing / Plant MRO",
     painPoints: [
       "Line downtime: $500–$5,000/minute while maintenance scrambles",
@@ -166,7 +160,6 @@ const CUSTOMER_TYPES = [
   },
   {
     id: "car-wash",
-    icon: "🚿",
     name: "Car Washes & Detailers",
     painPoints: [
       "High humidity + reclaimed water corrodes conveyor chains, bearings, motors",
@@ -187,7 +180,6 @@ const CUSTOMER_TYPES = [
   },
   {
     id: "hvac-plumbing",
-    icon: "❄️",
     name: "HVAC & Mechanical Contractors",
     painPoints: [
       "Refrigerant / gas leaks on pipe threads under thermal cycling",
@@ -208,7 +200,6 @@ const CUSTOMER_TYPES = [
   },
   {
     id: "landscaping-tree",
-    icon: "🌲",
     name: "Landscaping & Tree Service",
     painPoints: [
       "Chainsaw / chipper vibration rattling bolts loose constantly",
@@ -229,7 +220,6 @@ const CUSTOMER_TYPES = [
   },
   {
     id: "rv-powersports",
-    icon: "🏕️",
     name: "RV & Powersports Dealers",
     painPoints: [
       "RV roof seam leaks = massive warranty chargebacks",
@@ -250,7 +240,6 @@ const CUSTOMER_TYPES = [
   },
   {
     id: "waste-hauling",
-    icon: "🗑️",
     name: "Waste & Recycling Haulers",
     painPoints: [
       "Packer blade pins & hinges under continuous brutal hydraulic pressure",
@@ -271,7 +260,6 @@ const CUSTOMER_TYPES = [
   },
   {
     id: "firearms-defense",
-    icon: "🎯",
     name: "Gunsmiths, Ranges & Defense",
     painPoints: [
       "Carbon fouling baking onto bolt carrier groups and suppressors",
@@ -292,7 +280,6 @@ const CUSTOMER_TYPES = [
   },
   {
     id: "hospitals-institutions",
-    icon: "🏥",
     name: "Hospitals & Care Facilities",
     painPoints: [
       "Low odor / VOC regulations: can't use smelly solvents around patients",
@@ -313,7 +300,6 @@ const CUSTOMER_TYPES = [
   },
   {
     id: "heavy-towing-recovery",
-    icon: "🪝",
     name: "Towing & Recovery Operators",
     painPoints: [
       "Winch cables rusting from inside out under road spray",
@@ -338,84 +324,72 @@ const CUSTOMER_TYPES = [
 const ANGLE_FINDER = [
   {
     id: "hospital",
-    icon: "🏥",
     label: "Hospital / Healthcare",
     needs: "HVAC filters, low-VOC degreasers, plumbing seals, gurney/wheelchair lube, electrical hardware, cleanroom wipe-downs.",
     hook: "\"You've got 200 doors, 50 gurneys, and 4 air handlers that cannot squeak or fail. Who keeps the physical plant running?\"",
   },
   {
     id: "carwash",
-    icon: "🚿",
     label: "Car Wash",
     needs: "Water-proof grease (SIG 3000), stainless fasteners, foaming chemicals, hose fittings, high-pressure pump seals.",
     hook: "\"Reclaimed water is chewing up your conveyor bearings. Let me show you a grease that literally cannot be washed off with water.\"",
   },
   {
     id: "gunshop",
-    icon: "🎯",
     label: "Gunsmith / Range",
     needs: "Precision threadlockers (DOS bottle), carbon solvents, rust preventatives, Cerakote-safe degreasers, safety glasses/PPE.",
     hook: "\"Optic screws vibrate loose. One drop of DOS blue on a #6 screw locks it cold — zero drip on the glass or finish.\"",
   },
   {
     id: "brewery",
-    icon: "🍺",
     label: "Brewery / Cidery",
     needs: "NSF H1 food-grade lubricants, stainless steel fasteners, washdown-rated sealants, hose clamps, CIP maintenance chemicals.",
     hook: "\"Everything that touches product has to be NSF registered. We have the full line of food-grade lubes with instant SDS documentation.\"",
   },
   {
     id: "school",
-    icon: "🏫",
     label: "School / College",
     needs: "Bus fleet PM, custodial chemicals, HVAC maintenance, locker/desk fasteners, athletic equipment hardware, turf mower lube.",
     hook: "\"Between the bus garage and campus facilities, you burn through thousands in hardware and penetrants. Let's look at a standardized bin setup.\"",
   },
   {
     id: "dairy",
-    icon: "🥛",
     label: "Dairy / Ag Farm",
     needs: "Manure pump grease, milker vacuum pump lube, tractor hydraulic fittings, extreme rust penetrants, heavy-duty electrical wire shrink.",
     hook: "\"Manure and silage acid eats standard grease in 48 hours. SIG 3000 is acid-resistant and stays in the pin under 65,000 PSI.\"",
   },
   {
     id: "woodshop",
-    icon: "🪵",
     label: "Woodworking / Furniture",
     needs: "Carbide/cobalt blades, wood adhesives, dust-resistant dry lubes for planer tables, pneumatic nailer O-ring oil, respirator PPE.",
     hook: "\"Sawdust clings to wet lube and jams drawer slides. Our dry PTFE lube creates a slick surface that dust literally slides off of.\"",
   },
   {
     id: "solar",
-    icon: "☀️",
     label: "Solar / Electrical Contractor",
     needs: "Stainless & galvanized racking hardware, UV-rated cable ties, roof penetrant sealants (Bond and Seal), dielectric compounds, conduit hardware.",
     hook: "\"Roof racking brackets have to survive 25 years of Vermont winters. Bond and Seal flexes with thermal shock and never cracks.\"",
   },
   {
     id: "towing",
-    icon: "🪝",
     label: "Wrecker / Towing",
     needs: "Winch cable lube (HHS-K), salt-proof heat shrink terminals, high-impact boom grease, strobe wiring, grade 70 transport chain hardware.",
     hook: "\"Winter salt spray rots wrecker light bars from the inside. Dual-wall heat shrink with internal sealant makes connections 100% waterproof.\"",
   },
   {
     id: "golf",
-    icon: "⛳",
     label: "Golf Course Maintenance",
     needs: "Reel mower grinding abrasives, hydraulic leak check dyes, bedknife screws, high-moisture spindle grease, irrigation hardware.",
     hook: "\"A hydraulic leak on a green is a $10,000 disaster. Our high-pressure line checks and pure synthetic grease protect your turf equipment.\"",
   },
   {
     id: "marina",
-    icon: "⚓",
     label: "Marina / Boat Repair",
     needs: "Marine polyurethane sealant (Bond and Seal), 316 stainless hardware, corrosion-inhibiting battery terminal spray, salt-wash degreasers.",
     hook: "\"Silicone fails below the waterline. Bond and Seal permanently bonds fiberglass and aluminum with 400% elastic elongation.\"",
   },
   {
     id: "waste",
-    icon: "🗑️",
     label: "Waste & Transfer Station",
     needs: "Packer blade shock grease (SIG 3000), hydraulic cylinder rebuild seals, heavy degreasers, anti-seize wheel stud compound.",
     hook: "\"Packer blade pins take more pounding than anything in the state. If your grease is squeezing out on the first cycle, you're wearing out pins.\"",
@@ -622,7 +596,7 @@ const METHODOLOGY_PREVIEW = [
 /* ---------- PRE-CALL CHECKLIST ---------- */
 const PRECALL = [
   "Scanned the yard: observed 2 specific vehicles or pieces of equipment in service.",
-  "Demo ready: demo kit & sample products within arm's reach in the truck.",
+  "Demo ready: demo kit and sample products within arm's reach in the truck.",
   "Decided on the opener: tailored to their specific business archetype.",
   "Identified 1 competitor to displace: (Loctite, WD40, ZEP, NAPA, Fastenal).",
   "Target Decision Maker: determined whether seeking Shop Foreman, Fleet Superintendent, or Facilities Director.",
