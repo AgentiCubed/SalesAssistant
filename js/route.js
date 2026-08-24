@@ -1,18 +1,19 @@
 /* ============================================================
-   SALES COACH — PROSPECTING ROUTE PLANNER
-   Leaflet + OpenStreetMap (no API key, $0). Visual prospecting
-   route for the rep: drop prospect pins, auto-optimize the
-   driving order, then hand off to Google/Apple Maps for real
-   turn-by-turn nav.
-   Includes local state persistence & visited stop tracking.
+   SALES COACH — PROSPECTING ROUTE PLANNER (Phase 3)
+   Leaflet + OpenStreetMap (no API key, $0).
+   Features:
+   - Live GPS Device Location & Preset Territory Hubs
+   - Dynamic Prospect Database (Full Local CRUD)
+   - CSV / JSON Territory Import & Export
+   - Full-text Prospect Search & Segment Filtering
+   - Touch-Safe Drag Reordering & Tactile ▲ / ▼ Controls
+   - Per-Stop One-Tap Navigation ("Drive Here")
+   - Hardened Multi-Stop Navigation (Google & Apple Maps)
+   - Resilient LocalStorage State Persistence
    ============================================================ */
 
-/* ---------- PROSPECT DATABASE (Addison County, VT) ----------
-   Real business *types* and plausible local clusters around
-   Middlebury / Vergennes / Bristol. Coordinates are real-area
-   lat/lng so the map + routing demo cold. Tagged to the same
-   customer segments the rest of the app already uses.        */
-const PROSPECTS = [
+/* ---------- DEFAULT PROSPECT DATABASE (Addison County, VT) ---------- */
+const DEFAULT_PROSPECTS = [
   { id: "p1",  name: "Foster Motors (Service Bay)",   type: "Auto / Dealership",   seg: "auto",       lat: 44.0153, lng: -73.1672, addr: "Rte 7 S, Middlebury, VT",      hot: "Brake cleaner + shop towels burn fast here" },
   { id: "p2",  name: "Champlain Valley Equipment",     type: "Ag / Heavy Equip",    seg: "forklift",   lat: 44.1670, lng: -73.2540, addr: "Rte 7, Vergennes, VT",         hot: "Hydraulics, grease, cutting fluids" },
   { id: "p3",  name: "G. Stone Motors",                type: "Auto / Dealership",   seg: "auto",       lat: 44.1610, lng: -73.2490, addr: "Rte 7, Vergennes, VT",         hot: "Multi-bay — bulk chemicals + fasteners" },
@@ -37,7 +38,16 @@ const PROSPECTS = [
   { id: "p22", name: "Vermont Field Sports (Fleet)",    type: "Fleet / Service",      seg: "schoolbus",  lat: 44.0190, lng: -73.1620, addr: "Rte 7, Middlebury, VT",       hot: "Service fleet — brake clean, penetrant, wipes" },
 ];
 
-/* Segment chips for filtering — derived, labeled, with icons */
+/* Territory hub presets for fast one-tap switching */
+const PRESET_HUBS = [
+  { name: "Middlebury, VT (Rte 7)", lat: 44.0153, lng: -73.1672 },
+  { name: "Vergennes, VT (Main St)", lat: 44.1670, lng: -73.2540 },
+  { name: "Rutland, VT (Rte 7 N)", lat: 43.6106, lng: -72.9726 },
+  { name: "Burlington, VT (Shelburne Rd)", lat: 44.4759, lng: -73.2121 },
+  { name: "Montpelier, VT (State St)", lat: 44.2601, lng: -72.5754 },
+];
+
+/* Segment filter definitions */
 const ROUTE_SEGMENTS = [
   { id: "auto",       label: "Auto / Body",    icon: "🔧" },
   { id: "food",       label: "Food / Bev",     icon: "🥫" },
@@ -48,21 +58,149 @@ const ROUTE_SEGMENTS = [
   { id: "precision",  label: "Precision Mfg",  icon: "⚙️" },
 ];
 
-/* ---------- STATE & PERSISTENCE ---------- */
+/* ---------- PERSISTENCE STORAGE KEYS ---------- */
 const STORAGE_KEY_ROUTE = "sc_route_state_v1";
+const STORAGE_KEY_PROSPECTS = "sc_prospects_v2";
 
+/* Global in-memory route state */
 const routeState = {
   map: null,
-  layer: null,          // marker + line layer group
-  selected: [],         // prospect ids in the route
+  layer: null,
+  prospects: [],        // loaded dynamic prospects array
+  selected: [],         // selected prospect ids
   segFilter: new Set(), // active segment filters (empty = all)
-  start: { lat: 44.0153, lng: -73.1672, name: "Start (Middlebury, Rte 7)" },
-  ordered: [],          // route prospect objects (optimized OR manual)
-  manualOrder: false,   // true once the rep drags to reorder
-  visited: [],          // prospect ids marked as completed/visited
+  searchQuery: "",      // active text search filter
+  start: { lat: 44.0153, lng: -73.1672, name: "Middlebury, Rte 7", isGps: false },
+  ordered: [],          // ordered prospect objects
+  manualOrder: false,   // true if user reordered manually
+  visited: [],          // prospect ids marked completed
   inited: false,
 };
 
+/* ---------- PROSPECT REPOSITORY (CRUD) ---------- */
+function getProspects() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_PROSPECTS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {
+    console.warn("Could not load stored prospects, falling back to defaults:", e);
+  }
+  saveProspects(DEFAULT_PROSPECTS);
+  return DEFAULT_PROSPECTS.slice();
+}
+
+function saveProspects(list) {
+  try {
+    routeState.prospects = list;
+    localStorage.setItem(STORAGE_KEY_PROSPECTS, JSON.stringify(list));
+    updateProspectCountBadge();
+  } catch (e) {
+    console.warn("Could not save prospects:", e);
+  }
+}
+
+function addProspect(item) {
+  const list = getProspects();
+  const id = "p_" + Date.now();
+  let lat = Number(item.lat);
+  let lng = Number(item.lng);
+  
+  if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+    lat = Number((routeState.start.lat + (Math.random() - 0.5) * 0.04).toFixed(4));
+    lng = Number((routeState.start.lng + (Math.random() - 0.5) * 0.04).toFixed(4));
+  }
+
+  const newProspect = {
+    id: id,
+    name: (item.name || "Untitled Prospect").trim(),
+    type: (item.type || "Commercial / Industrial").trim(),
+    seg: item.seg || "auto",
+    lat: lat,
+    lng: lng,
+    addr: (item.addr || "Local Territory").trim(),
+    hot: (item.hot || "Opportunity identified").trim(),
+  };
+
+  list.unshift(newProspect);
+  saveProspects(list);
+  
+  if (!routeState.selected.includes(id)) {
+    routeState.selected.push(id);
+    saveRouteState();
+  }
+  
+  renderProspectList();
+  rebuildRoute();
+  setCoach('Added "' + newProspect.name + '" to your prospect directory and today\\'s route.');
+  return newProspect;
+}
+
+function updateProspect(id, item) {
+  const list = getProspects();
+  const idx = list.findIndex(p => p.id === id);
+  if (idx < 0) return null;
+
+  let lat = Number(item.lat);
+  let lng = Number(item.lng);
+  if (isNaN(lat) || isNaN(lng)) {
+    lat = list[idx].lat;
+    lng = list[idx].lng;
+  }
+
+  list[idx] = {
+    ...list[idx],
+    name: (item.name || list[idx].name).trim(),
+    type: (item.type || list[idx].type).trim(),
+    seg: item.seg || list[idx].seg,
+    lat: lat,
+    lng: lng,
+    addr: (item.addr || list[idx].addr).trim(),
+    hot: (item.hot || list[idx].hot).trim(),
+  };
+
+  saveProspects(list);
+  renderProspectList();
+  rebuildRoute();
+  setCoach('Updated "' + list[idx].name + '".');
+  return list[idx];
+}
+
+function deleteProspect(id) {
+  let list = getProspects();
+  const target = list.find(p => p.id === id);
+  const name = target ? target.name : "Prospect";
+  list = list.filter(p => p.id !== id);
+  saveProspects(list);
+
+  routeState.selected = routeState.selected.filter(x => x !== id);
+  routeState.visited = routeState.visited.filter(x => x !== id);
+  saveRouteState();
+
+  renderProspectList();
+  rebuildRoute();
+  setCoach('Removed "' + name + '" from territory.');
+}
+
+function resetProspectsToDefault() {
+  saveProspects(DEFAULT_PROSPECTS);
+  routeState.selected = ["p1", "p9", "p5", "p6"];
+  routeState.visited = [];
+  routeState.manualOrder = false;
+  saveRouteState();
+  renderProspectList();
+  rebuildRoute();
+  setCoach("Reset territory to default 22 Addison County prospects.");
+}
+
+function updateProspectCountBadge() {
+  const badge = document.getElementById("prospectCount");
+  if (badge) badge.textContent = routeState.prospects.length;
+}
+
+/* ---------- ROUTE STATE PERSISTENCE ---------- */
 function saveRouteState() {
   try {
     const data = {
@@ -96,7 +234,7 @@ function loadRouteState() {
       }
       if (data.manualOrder && Array.isArray(data.orderedIds)) {
         routeState.ordered = data.orderedIds
-          .map(id => PROSPECTS.find(p => p.id === id))
+          .map(id => routeState.prospects.find(p => p.id === id))
           .filter(Boolean);
       }
       return true;
@@ -117,7 +255,6 @@ function haversine(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-/* Nearest-neighbor route from the start point — simple, fast */
 function optimizeRoute(stops) {
   if (!stops.length) return [];
   const remaining = stops.slice();
@@ -140,6 +277,174 @@ function routeDistance(ordered) {
   return total;
 }
 
+/* ---------- LIVE GPS & START LOCATION MANAGEMENT ---------- */
+function setStartLocation(loc, isGps = false) {
+  routeState.start = {
+    lat: Number(loc.lat),
+    lng: Number(loc.lng),
+    name: loc.name || "Custom Starting Point",
+    isGps: isGps,
+  };
+  saveRouteState();
+  renderStartLocationUI();
+  rebuildRoute();
+  setCoach(isGps ? "Acquired live GPS fix. Route recalculated from your truck." : 'Route start set to "' + routeState.start.name + '".');
+}
+
+function requestGpsLocation() {
+  const btn = document.getElementById("btnUseGps");
+  if (btn) {
+    btn.classList.add("loading");
+    btn.innerHTML = "<span>📡</span> Acquiring GPS satellites...";
+  }
+
+  if (!navigator.geolocation) {
+    alert("Geolocation is not supported by your browser or device.");
+    if (btn) {
+      btn.classList.remove("loading");
+      btn.innerHTML = "<span>📡</span> Use Current Device GPS";
+    }
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = Number(pos.coords.latitude.toFixed(4));
+      const lng = Number(pos.coords.longitude.toFixed(4));
+      setStartLocation({ lat, lng, name: "Live GPS Location" }, true);
+      if (btn) {
+        btn.classList.remove("loading");
+        btn.innerHTML = "<span>✓</span> GPS Acquired (" + lat + ", " + lng + ")";
+      }
+      setTimeout(() => closeModal("modalStartLoc"), 400);
+    },
+    (err) => {
+      console.warn("GPS error:", err);
+      alert("Unable to retrieve device location (" + err.message + "). Please select a preset hub or enter coordinates manually.");
+      if (btn) {
+        btn.classList.remove("loading");
+        btn.innerHTML = "<span>📡</span> Use Current Device GPS";
+      }
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+  );
+}
+
+function renderStartLocationUI() {
+  const display = document.getElementById("routeStartDisplay");
+  if (display) {
+    display.textContent = routeState.start.name || (routeState.start.lat + ", " + routeState.start.lng);
+  }
+}
+
+function renderPresetHubs() {
+  const grid = document.getElementById("presetHubsGrid");
+  if (!grid) return;
+  grid.innerHTML = PRESET_HUBS.map(hub => `
+    <button class="preset-hub-card" data-hub-name="${hub.name}" data-lat="${hub.lat}" data-lng="${hub.lng}">
+      <span class="hub-icon">🏢</span>
+      <span class="hub-name">${hub.name}</span>
+    </button>
+  `).join("");
+
+  grid.querySelectorAll(".preset-hub-card").forEach(card => {
+    card.onclick = () => {
+      setStartLocation({
+        name: card.dataset.hubName,
+        lat: Number(card.dataset.lat),
+        lng: Number(card.dataset.lng),
+      }, false);
+      closeModal("modalStartLoc");
+    };
+  });
+}
+
+/* ---------- CSV & JSON IMPORT / EXPORT ---------- */
+function exportProspectsCSV() {
+  const list = routeState.prospects;
+  const headers = ["id", "name", "type", "seg", "lat", "lng", "addr", "hot"];
+  const rows = list.map(p => [
+    p.id,
+    '"' + (p.name || "").replace(/"/g, '""') + '"',
+    '"' + (p.type || "").replace(/"/g, '""') + '"',
+    p.seg,
+    p.lat,
+    p.lng,
+    '"' + (p.addr || "").replace(/"/g, '""') + '"',
+    '"' + (p.hot || "").replace(/"/g, '""') + '"',
+  ].join(","));
+  const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\\n");
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", "sales_coach_prospects.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setCoach("Exported " + list.length + " prospects to CSV.");
+}
+
+function exportProspectsJSON() {
+  const list = routeState.prospects;
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(list, null, 2));
+  const link = document.createElement("a");
+  link.setAttribute("href", dataStr);
+  link.setAttribute("download", "sales_coach_prospects.json");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setCoach("Exported " + list.length + " prospects to JSON.");
+}
+
+function handleFileImport(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    let imported = [];
+    try {
+      if (file.name.endsWith(".json")) {
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) imported = parsed;
+      } else {
+        const lines = text.split(/\\r\\n|\\n/).filter(l => l.trim().length > 0);
+        if (lines.length > 1) {
+          for (let i = 1; i < lines.length; i++) {
+            const parts = lines[i].match(/(".*?"|[^",\\s]+)(?=\\s*,|\\s*$)/g) || lines[i].split(",");
+            if (parts && parts.length >= 7) {
+              const clean = (s) => s ? s.replace(/^"|"$/g, "").trim() : "";
+              imported.push({
+                id: clean(parts[0]) || ("p_" + (Date.now() + i)),
+                name: clean(parts[1]),
+                type: clean(parts[2]),
+                seg: clean(parts[3]) || "auto",
+                lat: Number(clean(parts[4])) || (routeState.start.lat + (Math.random() - 0.5) * 0.04),
+                lng: Number(clean(parts[5])) || (routeState.start.lng + (Math.random() - 0.5) * 0.04),
+                addr: clean(parts[6]),
+                hot: parts[7] ? clean(parts[7]) : "Prospect lead",
+              });
+            }
+          }
+        }
+      }
+
+      if (imported.length > 0) {
+        saveProspects(imported);
+        renderProspectList();
+        rebuildRoute();
+        closeModal("modalImportExport");
+        setCoach("Successfully imported " + imported.length + " prospects into your territory.");
+      } else {
+        alert("Could not parse valid prospects from the file. Please check formatting.");
+      }
+    } catch (err) {
+      console.error("Import error:", err);
+      alert("Error parsing file: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
 /* ---------- LEAFLET ICONS ---------- */
 function brandIcon(n, hot, visited) {
   const classes = ["route-pin"];
@@ -147,7 +452,7 @@ function brandIcon(n, hot, visited) {
   if (visited) classes.push("visited");
   return L.divIcon({
     className: classes.join(" "),
-    html: '<div class="route-pin-inner">' + (visited ? '✓' : n) + '</div>',
+    html: '<div class="route-pin-inner">' + (visited ? "✓" : n) + "</div>",
     iconSize: [30, 30],
     iconAnchor: [15, 15],
   });
@@ -193,13 +498,32 @@ function renderRouteSegments() {
 
 /* ---------- RENDER: PROSPECT PICK LIST ---------- */
 function visibleProspects() {
-  if (routeState.segFilter.size === 0) return PROSPECTS;
-  return PROSPECTS.filter(p => routeState.segFilter.has(p.seg));
+  let list = routeState.prospects;
+  if (routeState.segFilter.size > 0) {
+    list = list.filter(p => routeState.segFilter.has(p.seg));
+  }
+  const q = (routeState.searchQuery || "").trim().toLowerCase();
+  if (q) {
+    list = list.filter(p =>
+      (p.name && p.name.toLowerCase().includes(q)) ||
+      (p.addr && p.addr.toLowerCase().includes(q)) ||
+      (p.type && p.type.toLowerCase().includes(q)) ||
+      (p.hot && p.hot.toLowerCase().includes(q))
+    );
+  }
+  return list;
 }
+
 function renderProspectList() {
   const out = $("#prospectList");
   if (!out) return;
   const list = visibleProspects();
+  
+  if (!list.length) {
+    out.innerHTML = '<div class="empty">No prospects matching filter. Tap "➕ Add Prospect" to add one.</div>';
+    return;
+  }
+
   out.innerHTML = list.map(p => {
     const on = routeState.selected.includes(p.id);
     const isDone = routeState.visited.includes(p.id);
@@ -207,19 +531,22 @@ function renderProspectList() {
     const checkText = isDone ? "✓" : (on ? "✓" : "+");
     const badgeHtml = isDone ? ' <span class="done-badge">Visited</span>' : '';
     return (
-      '<button class="' + cardClasses + '" data-pid="' + p.id + '">' +
-        '<span class="prospect-check">' + checkText + '</span>' +
-        '<span class="prospect-main">' +
+      '<div class="' + cardClasses + '" data-pid="' + p.id + '">' +
+        '<button class="prospect-check" data-action="toggle-route" data-pid="' + p.id + '">' + checkText + '</button>' +
+        '<div class="prospect-main" data-action="toggle-route" data-pid="' + p.id + '">' +
           '<span class="prospect-name">' + p.name + badgeHtml + '</span>' +
           '<span class="prospect-meta">' + p.type + ' · ' + p.addr + '</span>' +
           '<span class="prospect-hot">🔥 ' + p.hot + '</span>' +
-        '</span>' +
-      '</button>'
+        '</div>' +
+        '<button class="prospect-edit-btn" data-action="edit-prospect" data-pid="' + p.id + '" title="Edit details">✎</button>' +
+      '</div>'
     );
   }).join("");
-  $$("#prospectList .prospect-card").forEach(b => {
-    b.onclick = () => {
-      const id = b.dataset.pid;
+
+  $$("#prospectList [data-action='toggle-route']").forEach(el => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      const id = el.dataset.pid || el.closest(".prospect-card").dataset.pid;
       const i = routeState.selected.indexOf(id);
       if (i >= 0) {
         routeState.selected.splice(i, 1);
@@ -233,6 +560,14 @@ function renderProspectList() {
       rebuildRoute();
     };
   });
+
+  $$("#prospectList [data-action='edit-prospect']").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.pid;
+      openAddProspectModal(id);
+    };
+  });
 }
 
 /* ---------- RENDER: MAP + ROUTE LINE ---------- */
@@ -242,12 +577,13 @@ function tileUrl() {
     ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
     : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
 }
+
 function ensureMap() {
   if (routeState.map) return;
   const mapEl = document.getElementById("routeMap");
   if (mapEl) mapEl.classList.add("map-loading");
   routeState.map = L.map("routeMap", { zoomControl: true, attributionControl: true })
-    .setView([44.06, -73.18], 11);
+    .setView([routeState.start.lat, routeState.start.lng], 11);
   routeState.tiles = L.tileLayer(tileUrl(), {
     maxZoom: 20, subdomains: "abcd",
     attribution: '&copy; OpenStreetMap &copy; CARTO',
@@ -257,7 +593,6 @@ function ensureMap() {
   routeState.layer = L.layerGroup().addTo(routeState.map);
 }
 
-/* Swap basemap when theme changes */
 function refreshMapTheme() {
   if (!routeState.map || !routeState.tiles) return;
   routeState.tiles.setUrl(tileUrl());
@@ -267,18 +602,18 @@ function rebuildRoute() {
   ensureMap();
   routeState.layer.clearLayers();
 
-  const chosen = PROSPECTS.filter(p => routeState.selected.includes(p.id));
+  const chosen = routeState.prospects.filter(p => routeState.selected.includes(p.id));
   if (routeState.manualOrder) {
     const prevIds = routeState.ordered.map(p => p.id).filter(id => routeState.selected.includes(id));
     const newIds = routeState.selected.filter(id => !prevIds.includes(id));
-    routeState.ordered = [...prevIds, ...newIds].map(id => PROSPECTS.find(p => p.id === id));
+    routeState.ordered = [...prevIds, ...newIds].map(id => routeState.prospects.find(p => p.id === id)).filter(Boolean);
   } else {
     routeState.ordered = optimizeRoute(chosen);
   }
 
   // start pin
   L.marker([routeState.start.lat, routeState.start.lng], { icon: startIcon() })
-    .bindPopup('<b>' + routeState.start.name + '</b>')
+    .bindPopup('<b>' + routeState.start.name + '</b><br><i>Route Starting Hub</i>')
     .addTo(routeState.layer);
 
   // ordered prospect pins
@@ -301,7 +636,6 @@ function rebuildRoute() {
   renderRouteSummary();
 }
 
-/* ---------- TOGGLE VISITED STATUS ---------- */
 function toggleStopVisited(id) {
   const idx = routeState.visited.indexOf(id);
   if (idx >= 0) {
@@ -314,13 +648,41 @@ function toggleStopVisited(id) {
   redrawFromOrdered();
 }
 
+/* Move stop up or down in manual order */
+function moveStop(index, delta) {
+  const target = index + delta;
+  if (target < 0 || target >= routeState.ordered.length) return;
+  const arr = routeState.ordered.slice();
+  const temp = arr[index];
+  arr[index] = arr[target];
+  arr[target] = temp;
+  routeState.ordered = arr;
+  routeState.manualOrder = true;
+  saveRouteState();
+  redrawFromOrdered();
+}
+
+/* Direct point-to-point navigation to a single stop */
+function openSingleStopNav(id) {
+  const p = routeState.prospects.find(x => x.id === id);
+  if (!p) return;
+  const isApple = /iPhone|iPad|iPod|Macintosh/i.test(navigator.userAgent);
+  if (isApple) {
+    const url = "https://maps.apple.com/?daddr=" + p.lat + "," + p.lng + "&q=" + encodeURIComponent(p.name) + "&dirflg=d";
+    window.open(url, "_blank");
+  } else {
+    const url = "https://www.google.com/maps/dir/?api=1&destination=" + p.lat + "," + p.lng + "&travelmode=driving";
+    window.open(url, "_blank");
+  }
+}
+
 /* ---------- RENDER: SUMMARY + STOP LIST + HANDOFF ---------- */
 function renderRouteSummary() {
   const out = $("#routeSummary");
   if (!out) return;
   const ord = routeState.ordered;
   if (!ord.length) {
-    out.innerHTML = '<div class="empty">Pick prospects above to build your route. I\\'ll order them for the shortest drive and drop them on the map.</div>';
+    out.innerHTML = '<div class="empty">Pick prospects from the directory below to build your route. I\\'ll order them for the shortest drive and drop them on the map.</div>';
     setCoach("Stack your day: tap the shops you're hitting, I'll plan the drive.");
     return;
   }
@@ -335,17 +697,27 @@ function renderRouteSummary() {
     const numContent = isDone ? "✓" : String(i + 1);
     const badgeHtml = isDone ? ' <span class="done-badge">Visited</span>' : '';
     const checkContent = isDone ? "✓" : "";
+    const isFirst = i === 0;
+    const isLast = i === ord.length - 1;
+
     return (
       '<li class="' + rowClass + '" draggable="true" data-idx="' + i + '" data-pid="' + p.id + '">' +
         '<button class="stop-check-btn" data-pid="' + p.id + '" title="Toggle completed" aria-label="Mark ' + p.name + ' as visited">' +
           '<span class="check-circle">' + checkContent + '</span>' +
         '</button>' +
-        '<span class="stop-grip" aria-hidden="true">☰</span>' +
+        '<span class="stop-grip" aria-hidden="true" title="Drag to reorder">☰</span>' +
         '<span class="' + numClass + '">' + numContent + '</span>' +
         '<span class="stop-body">' +
           '<b>' + p.name + badgeHtml + '</b>' +
           '<span class="stop-sub">' + p.type + ' · ' + p.addr + '</span>' +
         '</span>' +
+        '<div class="stop-actions-cell">' +
+          '<button class="btn-stop-nav" data-pid="' + p.id + '" title="Drive directly to this stop">🚗 Nav</button>' +
+          '<div class="stop-reorder-btns">' +
+            '<button class="stop-reorder-btn btn-up" data-idx="' + i + '"' + (isFirst ? ' disabled style="opacity:0.25;"' : '') + ' title="Move Up">▲</button>' +
+            '<button class="stop-reorder-btn btn-down" data-idx="' + i + '"' + (isLast ? ' disabled style="opacity:0.25;"' : '') + ' title="Move Down">▼</button>' +
+          '</div>' +
+        '</div>' +
       '</li>'
     );
   }).join("");
@@ -354,7 +726,7 @@ function renderRouteSummary() {
   const orderLabel = manual ? "Custom order" : "Optimized order";
   const orderActionHtml = manual
     ? '<button id="btnReopt" class="chip-mini">⚡ Re-optimize</button>'
-    : '<span class="stop-head-hint">drag ☰ to reorder · tap ○ to check off</span>';
+    : '<span class="stop-head-hint">drag ☰ or tap ▲▼ · tap ○ to check off</span>';
 
   out.innerHTML = (
     '<div class="route-stat-row">' +
@@ -368,11 +740,11 @@ function renderRouteSummary() {
     '</div>' +
     '<ol class="stop-list" id="stopList">' + stops + '</ol>' +
     '<div class="route-actions">' +
-      '<button id="btnGoogle" class="btn-route gmaps">🗺️ Open in Google Maps</button>' +
-      '<button id="btnApple" class="btn-route amaps">🍎 Open in Apple Maps</button>' +
+      '<button id="btnGoogle" class="btn-route gmaps">🗺️ Route in Google Maps</button>' +
+      '<button id="btnApple" class="btn-route amaps">🍎 Route in Apple Maps</button>' +
       '<button id="btnClearRoute" class="btn-ghost">Clear route</button>' +
     '</div>' +
-    '<p class="route-foot">Plan in-app → hand the optimized route to your phone\\'s nav for live turn-by-turn. Add these stops to wherever you\\'re already driving today.</p>'
+    '<p class="route-foot">Tap <b>🚗 Nav</b> on any stop for immediate directions, or launch the full optimized route to your phone\\'s nav.</p>'
   );
 
   $("#btnGoogle").onclick = openInGoogleMaps;
@@ -396,6 +768,7 @@ function renderRouteSummary() {
     };
   }
 
+  // Check buttons
   $$("#stopList .stop-check-btn").forEach(btn => {
     btn.onclick = (e) => {
       e.stopPropagation();
@@ -404,23 +777,49 @@ function renderRouteSummary() {
     };
   });
 
-  wireStopDrag();
+  // Direct Stop Nav buttons
+  $$("#stopList .btn-stop-nav").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const pid = btn.dataset.pid;
+      openSingleStopNav(pid);
+    };
+  });
+
+  // Tactile Reorder buttons
+  $$("#stopList .btn-up").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const idx = Number(btn.dataset.idx);
+      moveStop(idx, -1);
+    };
+  });
+  $$("#stopList .btn-down").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const idx = Number(btn.dataset.idx);
+      moveStop(idx, 1);
+    };
+  });
+
+  wireStopDragAndTouch();
 
   if (visitedCount === ord.length && ord.length > 0) {
     setCoach('All ' + ord.length + ' stops logged today. Great drive — lock down the follow-ups.');
   } else {
     setCoach(manual
-      ? 'Your call — ' + visitedCount + '/' + ord.length + ' stops done (' + miles + ' mi in your order). Hit "Open in Google Maps" and roll.'
-      : 'Route locked: ' + visitedCount + '/' + ord.length + ' stops done (' + miles + ' mi). Hit "Open in Google Maps" and roll.');
+      ? 'Your call — ' + visitedCount + '/' + ord.length + ' stops done (' + miles + ' mi in your order). Hit "Route in Google Maps" or "🚗 Nav" on a stop.'
+      : 'Route locked: ' + visitedCount + '/' + ord.length + ' stops done (' + miles + ' mi). Ready to drive.');
   }
 }
 
-/* ---------- DRAG-TO-REORDER STOPS ---------- */
-function wireStopDrag() {
+/* ---------- DRAG & TOUCH REORDERING ---------- */
+function wireStopDragAndTouch() {
   const list = $("#stopList");
   if (!list) return;
   let dragIdx = null;
 
+  // HTML5 Drag
   $$(".stop-row", list).forEach(row => {
     row.addEventListener("dragstart", (e) => {
       dragIdx = +row.dataset.idx;
@@ -460,14 +859,67 @@ function wireStopDrag() {
       redrawFromOrdered();
     });
   });
+
+  // Mobile Touch Reordering on the grip handle
+  let touchStartIdx = null;
+  let touchRow = null;
+
+  $$(".stop-grip", list).forEach(grip => {
+    grip.addEventListener("touchstart", (e) => {
+      touchRow = grip.closest(".stop-row");
+      if (!touchRow) return;
+      touchStartIdx = +touchRow.dataset.idx;
+      touchRow.classList.add("touch-dragging");
+    }, { passive: true });
+
+    grip.addEventListener("touchmove", (e) => {
+      if (touchStartIdx === null) return;
+      const touch = e.touches[0];
+      const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+      const overRow = targetEl ? targetEl.closest(".stop-row") : null;
+      $$(".stop-row", list).forEach(r => r.classList.remove("drop-above", "drop-below"));
+      if (overRow && overRow !== touchRow) {
+        const rect = overRow.getBoundingClientRect();
+        const below = (touch.clientY - rect.top) > rect.height / 2;
+        overRow.classList.add(below ? "drop-below" : "drop-above");
+      }
+    }, { passive: true });
+
+    grip.addEventListener("touchend", (e) => {
+      if (touchStartIdx === null || !touchRow) return;
+      touchRow.classList.remove("touch-dragging");
+      const changedTouch = e.changedTouches[0];
+      const targetEl = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
+      const overRow = targetEl ? targetEl.closest(".stop-row") : null;
+      $$(".stop-row", list).forEach(r => r.classList.remove("drop-above", "drop-below"));
+      
+      if (overRow && overRow !== touchRow) {
+        const from = touchStartIdx;
+        let to = +overRow.dataset.idx;
+        const rect = overRow.getBoundingClientRect();
+        const below = (changedTouch.clientY - rect.top) > rect.height / 2;
+        const arr = routeState.ordered.slice();
+        const [moved] = arr.splice(from, 1);
+        if (from < to) to -= 1;
+        if (below) to += 1;
+        to = Math.max(0, Math.min(arr.length, to));
+        arr.splice(to, 0, moved);
+        routeState.ordered = arr;
+        routeState.manualOrder = true;
+        saveRouteState();
+        redrawFromOrdered();
+      }
+      touchStartIdx = null;
+      touchRow = null;
+    });
+  });
 }
 
-/* Redraw map + summary from the current ordered[] */
 function redrawFromOrdered() {
   ensureMap();
   routeState.layer.clearLayers();
   L.marker([routeState.start.lat, routeState.start.lng], { icon: startIcon() })
-    .bindPopup('<b>' + routeState.start.name + '</b>').addTo(routeState.layer);
+    .bindPopup('<b>' + routeState.start.name + '</b><br><i>Route Starting Hub</i>').addTo(routeState.layer);
   routeState.ordered.forEach((p, i) => {
     const isVisited = routeState.visited.includes(p.id);
     L.marker([p.lat, p.lng], { icon: brandIcon(i + 1, true, isVisited) })
@@ -483,40 +935,216 @@ function redrawFromOrdered() {
   renderRouteSummary();
 }
 
-/* ---------- MAPS HAND-OFF ---------- */
+/* ---------- MULTI-STOP MAPS HAND-OFF ---------- */
 function openInGoogleMaps() {
   const ord = routeState.ordered;
   if (!ord.length) return;
-  const origin = routeState.start.lat + ',' + routeState.start.lng;
-  const dest = ord[ord.length - 1].lat + ',' + ord[ord.length - 1].lng;
-  const waypoints = ord.slice(0, -1).map(p => p.lat + ',' + p.lng).join("|");
-  let url = 'https://www.google.com/maps/dir/?api=1&origin=' + origin + '&destination=' + dest + '&travelmode=driving';
-  if (waypoints) url += '&waypoints=' + encodeURIComponent(waypoints);
+  const origin = routeState.start.lat + "," + routeState.start.lng;
+  const dest = ord[ord.length - 1].lat + "," + ord[ord.length - 1].lng;
+  
+  // Google Maps supports up to 9 intermediate waypoints in URL
+  let waypointsList = ord.slice(0, -1);
+  if (waypointsList.length > 9) {
+    alert("Notice: Google Maps allows up to 9 intermediate waypoints via link. The first 9 stops will be routed.");
+    waypointsList = waypointsList.slice(0, 9);
+  }
+  const waypoints = waypointsList.map(p => p.lat + "," + p.lng).join("|");
+  let url = "https://www.google.com/maps/dir/?api=1&origin=" + origin + "&destination=" + dest + "&travelmode=driving";
+  if (waypoints) url += "&waypoints=" + encodeURIComponent(waypoints);
   window.open(url, "_blank");
 }
+
 function openInAppleMaps() {
   const ord = routeState.ordered;
   if (!ord.length) return;
-  const saddr = routeState.start.lat + ',' + routeState.start.lng;
-  const daddr = ord.map(p => p.lat + ',' + p.lng).join(" to: ");
-  window.open('https://maps.apple.com/?saddr=' + saddr + '&daddr=' + daddr + '&dirflg=d', "_blank");
+  const saddr = routeState.start.lat + "," + routeState.start.lng;
+  const daddr = ord.map(p => p.lat + "," + p.lng).join(" to: ");
+  window.open("https://maps.apple.com/?saddr=" + saddr + "&daddr=" + daddr + "&dirflg=d", "_blank");
 }
 
-/* ---------- INIT (lazy — only when the view is opened) ---------- */
+/* ---------- MODAL CONTROLLERS ---------- */
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.style.display = "flex";
+    document.body.classList.add("modal-open");
+  }
+}
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.style.display = "none";
+    document.body.classList.remove("modal-open");
+  }
+}
+
+function openAddProspectModal(editId = null) {
+  const title = document.getElementById("modalProspectTitle");
+  const form = document.getElementById("formAddProspect");
+  const btnDel = document.getElementById("btnDeleteProspect");
+  const inputId = document.getElementById("inputProspectId");
+  const inputName = document.getElementById("inputProspectName");
+  const inputType = document.getElementById("inputProspectType");
+  const selectSeg = document.getElementById("selectProspectSeg");
+  const inputAddr = document.getElementById("inputProspectAddr");
+  const inputLat = document.getElementById("inputProspectLat");
+  const inputLng = document.getElementById("inputProspectLng");
+  const inputHot = document.getElementById("inputProspectHot");
+
+  if (!form) return;
+  form.reset();
+
+  if (editId) {
+    const existing = routeState.prospects.find(p => p.id === editId);
+    if (existing) {
+      if (title) title.textContent = "✎ Edit Prospect";
+      inputId.value = existing.id;
+      inputName.value = existing.name;
+      inputType.value = existing.type;
+      selectSeg.value = existing.seg;
+      inputAddr.value = existing.addr;
+      inputLat.value = existing.lat;
+      inputLng.value = existing.lng;
+      inputHot.value = existing.hot;
+      if (btnDel) {
+        btnDel.style.display = "inline-block";
+        btnDel.onclick = () => {
+          if (confirm('Delete "' + existing.name + '" from your territory directory?')) {
+            deleteProspect(existing.id);
+            closeModal("modalAddProspect");
+          }
+        };
+      }
+    }
+  } else {
+    if (title) title.textContent = "➕ Add New Prospect";
+    inputId.value = "";
+    if (btnDel) btnDel.style.display = "none";
+  }
+
+  openModal("modalAddProspect");
+}
+
+function initRouteModals() {
+  $$("[data-close-modal]").forEach(btn => {
+    btn.onclick = () => closeModal(btn.dataset.closeModal);
+  });
+  $$(".modal-backdrop").forEach(backdrop => {
+    backdrop.onclick = (e) => {
+      if (e.target === backdrop) closeModal(backdrop.id);
+    };
+  });
+
+  const btnOpenStart = document.getElementById("btnOpenStartModal");
+  if (btnOpenStart) btnOpenStart.onclick = () => {
+    renderPresetHubs();
+    openModal("modalStartLoc");
+  };
+
+  const btnGps = document.getElementById("btnUseGps");
+  if (btnGps) btnGps.onclick = requestGpsLocation;
+
+  const btnSaveCustomStart = document.getElementById("btnSaveCustomStart");
+  if (btnSaveCustomStart) {
+    btnSaveCustomStart.onclick = () => {
+      const name = ($("#inputCustomStartName").value || "Custom Hub").trim();
+      const lat = Number($("#inputCustomStartLat").value);
+      const lng = Number($("#inputCustomStartLng").value);
+      if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+        alert("Please enter valid numeric latitude and longitude coordinates.");
+        return;
+      }
+      setStartLocation({ name, lat, lng }, false);
+      closeModal("modalStartLoc");
+    };
+  }
+
+  const btnOpenAdd = document.getElementById("btnOpenAddProspect");
+  if (btnOpenAdd) btnOpenAdd.onclick = () => openAddProspectModal(null);
+
+  const formAdd = document.getElementById("formAddProspect");
+  if (formAdd) {
+    formAdd.onsubmit = (e) => {
+      e.preventDefault();
+      const editId = $("#inputProspectId").value;
+      const data = {
+        name: $("#inputProspectName").value,
+        type: $("#inputProspectType").value,
+        seg: $("#selectProspectSeg").value,
+        addr: $("#inputProspectAddr").value,
+        lat: $("#inputProspectLat").value,
+        lng: $("#inputProspectLng").value,
+        hot: $("#inputProspectHot").value,
+      };
+
+      if (editId) {
+        updateProspect(editId, data);
+      } else {
+        addProspect(data);
+      }
+      closeModal("modalAddProspect");
+    };
+  }
+
+  const btnOpenIE = document.getElementById("btnOpenImportExport");
+  if (btnOpenIE) btnOpenIE.onclick = () => openModal("modalImportExport");
+
+  const btnExpCSV = document.getElementById("btnExportCSV");
+  if (btnExpCSV) btnExpCSV.onclick = exportProspectsCSV;
+
+  const btnExpJSON = document.getElementById("btnExportJSON");
+  if (btnExpJSON) btnExpJSON.onclick = exportProspectsJSON;
+
+  const importInput = document.getElementById("importFileInput");
+  if (importInput) {
+    importInput.onchange = (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleFileImport(e.target.files[0]);
+      }
+    };
+  }
+
+  const btnReset = document.getElementById("btnResetProspects");
+  if (btnReset) {
+    btnReset.onclick = () => {
+      if (confirm("Reset your directory to default 22 Addison County prospects? Any custom additions will be cleared.")) {
+        resetProspectsToDefault();
+        closeModal("modalImportExport");
+      }
+    };
+  }
+
+  const searchInput = document.getElementById("routeSearch");
+  if (searchInput) {
+    searchInput.oninput = (e) => {
+      routeState.searchQuery = e.target.value;
+      renderProspectList();
+    };
+  }
+}
+
+/* ---------- INIT ROUTE VIEW ---------- */
 function initRoute() {
-  if (routeState.inited) { setTimeout(() => routeState.map && routeState.map.invalidateSize(), 60); return; }
+  if (routeState.inited) {
+    setTimeout(() => routeState.map && routeState.map.invalidateSize(), 60);
+    return;
+  }
   routeState.inited = true;
+
+  routeState.prospects = getProspects();
+  updateProspectCountBadge();
 
   const hasSaved = loadRouteState();
   if (!hasSaved) {
-    // Default seed for first-time user
     routeState.selected = ["p1", "p9", "p5", "p6"];
     routeState.visited = [];
     routeState.manualOrder = false;
   }
 
+  renderStartLocationUI();
   renderRouteSegments();
   renderProspectList();
+  initRouteModals();
   ensureMap();
   rebuildRoute();
   setTimeout(() => routeState.map && routeState.map.invalidateSize(), 80);

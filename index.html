@@ -20,7 +20,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Sora:wght@600;700;800&display=swap" />
 
-  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" onerror="this.onerror=null;this.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -59,8 +59,8 @@
         <p class="hero-sub" id="heroSub">Your prospecting cockpit — pick a play and roll.</p>
         <div class="hero-stats">
           <div class="hero-stat"><span class="hs-num" id="hsProducts">103</span><span class="hs-lab">Products</span></div>
-          <div class="hero-stat"><span class="hs-num" id="hsCards">3</span><span class="hs-lab">Battle Cards</span></div>
-          <div class="hero-stat"><span class="hs-num" id="hsRoute">12</span><span class="hs-lab">Prospects</span></div>
+          <div class="hero-stat"><span class="hs-num" id="hsCards">7</span><span class="hs-lab">Battle Cards</span></div>
+          <div class="hero-stat"><span class="hs-num" id="hsRoute">22</span><span class="hs-lab">Prospects</span></div>
         </div>
         <button class="hero-cta" data-go="route">🗺️ &nbsp;Plan today's route</button>
       </div>
@@ -92,10 +92,10 @@
           <span class="tile-title">Prospecting Playbook</span>
           <span class="tile-desc">Find &amp; open ideal targets</span>
         </button>
-        <button class="tile tile-soon" data-go="methodology">
+        <button class="tile" data-go="methodology">
           <span class="tile-ico">🎓</span>
-          <span class="tile-title">Methodology <span class="soon-badge">Soon</span></span>
-          <span class="tile-desc">The “Persuade” coaching course</span>
+          <span class="tile-title">Sales Methodology</span>
+          <span class="tile-desc">How to Persuade &amp; Get Paid</span>
         </button>
         <button class="tile" data-go="cockpit">
           <span class="tile-ico">📞</span>
@@ -158,17 +158,11 @@
       <div id="catOut" class="cat-list"></div>
     </section>
 
-    <!-- METHODOLOGY (placeholder — next iteration) -->
+    <!-- METHODOLOGY -->
     <section id="view-methodology" class="view">
-      <h2 class="view-title">Methodology — The “Persuade” Course</h2>
-      <div class="soon-hero">
-        <span class="soon-hero-ico">🎓</span>
-        <h3>Coming in the next iteration</h3>
-        <p>A guided coaching course built on Würth’s own sales training — Phil M. Jones’ <em>How to Persuade and Get Paid</em>. New reps will work through it step by step.</p>
-      </div>
-      <p class="view-lead" style="margin-top:18px;">Here’s a preview of what’s coming:</p>
+      <h2 class="view-title">Sales Methodology</h2>
+      <p class="view-lead">The core field sales training system: <em>How to Persuade and Get Paid</em>. Master these 6 modules to lead conversations, execute live demos, and close accounts.</p>
       <div id="methodPreview" class="accordion"></div>
-      <p class="soon-foot">This section is under active development for Iteration 2.</p>
     </section>
 
     <!-- PLAYBOOK -->
@@ -195,12 +189,35 @@
 
     <!-- PROSPECTING ROUTE -->
     <section id="view-route" class="view">
-      <h2 class="view-title">Prospecting Route</h2>
-      <p class="view-lead">Build your day on the map. Pick the shops you're hitting — I'll order them for the shortest drive, then hand it to your phone's nav for live turn-by-turn.</p>
+      <div class="view-header-row">
+        <div>
+          <h2 class="view-title">Prospecting Route</h2>
+          <p class="view-lead">Build your day on the map. Pick the shops you're hitting — I'll order them for the shortest drive, then hand it to your phone's nav for live turn-by-turn.</p>
+        </div>
+      </div>
+
+      <!-- Route Toolbar: Location Selector & Action Buttons -->
+      <div class="route-toolbar">
+        <div class="route-start-pill">
+          <span class="rsp-icon">📍</span>
+          <span class="rsp-label">Start:</span>
+          <span id="routeStartDisplay" class="rsp-value">Middlebury, Rte 7</span>
+          <button id="btnOpenStartModal" class="chip-mini">Change / GPS</button>
+        </div>
+        <div class="route-tools-btns">
+          <button id="btnOpenAddProspect" class="btn-route-action primary">➕ Add Prospect</button>
+          <button id="btnOpenImportExport" class="btn-route-action">📥 Data / CSV</button>
+        </div>
+      </div>
+
       <div id="routeSegments" class="chip-grid"></div>
       <div id="routeMap" class="route-map"></div>
       <div id="routeSummary" class="route-summary"></div>
-      <h3 class="route-subhead">Add prospects</h3>
+
+      <div class="prospect-search-row">
+        <h3 class="route-subhead">Prospect Directory (<span id="prospectCount">22</span>)</h3>
+        <input id="routeSearch" class="search search-inline" type="search" placeholder="Search by name, address, notes..." />
+      </div>
       <div id="prospectList" class="prospect-list"></div>
     </section>
 
@@ -223,7 +240,134 @@
     <button class="nav-btn" data-go="cockpit"><span>📞</span>Call</button>
   </nav>
 
+  <!-- ===== MODALS ===== -->
+
+  <!-- Modal: Start Location / GPS -->
+  <div id="modalStartLoc" class="modal-backdrop" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 class="modal-title">📍 Route Starting Point</h3>
+        <button class="modal-close" data-close-modal="modalStartLoc">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Where is your route starting from today? Use live GPS from your truck, a territory hub, or custom coordinates.</p>
+        <button id="btnUseGps" class="btn-modal-action gps-btn">
+          <span>📡</span> Use Current Device GPS
+        </button>
+        <div class="modal-divider"><span>OR CHOOSE PRESET HUB</span></div>
+        <div class="preset-hubs-grid" id="presetHubsGrid"></div>
+        <div class="modal-divider"><span>OR CUSTOM COORDINATES</span></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Location Name</label>
+            <input id="inputCustomStartName" type="text" placeholder="e.g. Home Depot Lot" />
+          </div>
+        </div>
+        <div class="form-row form-row-2">
+          <div class="form-group">
+            <label>Latitude</label>
+            <input id="inputCustomStartLat" type="number" step="any" placeholder="44.0153" />
+          </div>
+          <div class="form-group">
+            <label>Longitude</label>
+            <input id="inputCustomStartLng" type="number" step="any" placeholder="-73.1672" />
+          </div>
+        </div>
+        <button id="btnSaveCustomStart" class="btn-modal-action secondary">Set Custom Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add / Edit Prospect -->
+  <div id="modalAddProspect" class="modal-backdrop" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 class="modal-title" id="modalProspectTitle">➕ Add New Prospect</h3>
+        <button class="modal-close" data-close-modal="modalAddProspect">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="formAddProspect">
+          <input type="hidden" id="inputProspectId" value="" />
+          <div class="form-group">
+            <label>Business Name *</label>
+            <input id="inputProspectName" type="text" required placeholder="e.g. Green Mountain Fleet Services" />
+          </div>
+          <div class="form-row form-row-2">
+            <div class="form-group">
+              <label>Business Type *</label>
+              <input id="inputProspectType" type="text" required placeholder="e.g. Fleet / Diesel Repair" />
+            </div>
+            <div class="form-group">
+              <label>Segment *</label>
+              <select id="selectProspectSeg" required>
+                <option value="auto">Auto / Body (🔧)</option>
+                <option value="food">Food / Bev (🥫)</option>
+                <option value="facilities">Facilities (🏭)</option>
+                <option value="schoolbus">School Bus (🚌)</option>
+                <option value="forklift">Ag / Equip (🚜)</option>
+                <option value="carwash">Carwash (🚿)</option>
+                <option value="precision">Precision Mfg (⚙️)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Address / Town *</label>
+            <input id="inputProspectAddr" type="text" required placeholder="e.g. 45 Court St, Middlebury, VT" />
+          </div>
+          <div class="form-row form-row-2">
+            <div class="form-group">
+              <label>Latitude (optional)</label>
+              <input id="inputProspectLat" type="number" step="any" placeholder="Auto-calculated if blank" />
+            </div>
+            <div class="form-group">
+              <label>Longitude (optional)</label>
+              <input id="inputProspectLng" type="number" step="any" placeholder="Auto-calculated if blank" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Hot Opportunity / Pain Points *</label>
+            <input id="inputProspectHot" type="text" required placeholder="e.g. Heavy grease, fastener bins empty, brake clean" />
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="btnDeleteProspect" class="btn-ghost danger" style="display:none;">Delete</button>
+            <button type="submit" class="btn-modal-action primary">Save Prospect</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Import / Export Territory -->
+  <div id="modalImportExport" class="modal-backdrop" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 class="modal-title">📥 Territory Data Management</h3>
+        <button class="modal-close" data-close-modal="modalImportExport">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Export your territory database or import customer lists from your spreadsheet (CSV) or backup (JSON).</p>
+        <div class="import-export-actions">
+          <button id="btnExportCSV" class="btn-modal-action">📊 Export Territory to CSV</button>
+          <button id="btnExportJSON" class="btn-modal-action">💾 Export Territory to JSON</button>
+          <label class="btn-modal-action secondary file-label">
+            <span>📁 Import CSV / JSON File</span>
+            <input id="importFileInput" type="file" accept=".csv,.json" style="display:none;" />
+          </label>
+          <button id="btnResetProspects" class="btn-ghost danger">Reset to Default 22 Prospects</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="vendor/leaflet/leaflet.js"></script>
+  <script>
+    if (typeof L === 'undefined') {
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      s.async = false;
+      document.head.appendChild(s);
+    }
+  </script>
   <script src="js/data.js"></script>
   <script src="js/route.js"></script>
   <script src="js/battlecards.js"></script>

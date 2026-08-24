@@ -776,3 +776,422 @@ body.dark .stop-check-btn {
 body.dark .stop-row.is-visited {
   background: rgba(21, 160, 90, 0.08);
 }
+
+/* ============================================================
+   PHASE 2: DYNAMIC TERRITORY, GPS & MODALS
+   ============================================================ */
+
+/* Route Toolbar */
+.route-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.route-start-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  padding: 6px 12px;
+  box-shadow: var(--shadow-sm);
+  font-size: 13px;
+}
+.route-start-pill .rsp-icon { font-size: 14px; }
+.route-start-pill .rsp-label { font-weight: 700; color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+.route-start-pill .rsp-value { font-weight: 700; color: var(--ink); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.route-tools-btns {
+  display: flex;
+  gap: 8px;
+}
+.btn-route-action {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--slate);
+  box-shadow: var(--shadow-sm);
+  transition: all .18s var(--ease);
+}
+.btn-route-action:hover {
+  border-color: var(--muted-2);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+.btn-route-action:active {
+  transform: scale(0.96);
+}
+.btn-route-action.primary {
+  background: linear-gradient(135deg, var(--red), var(--red-dark));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: var(--shadow-red);
+}
+
+/* Prospect Search & Header */
+.prospect-search-row {
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+.search-inline {
+  margin-bottom: 0;
+  margin-top: 8px;
+}
+
+/* Prospect Edit Button */
+.prospect-edit-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--muted-2);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: all .18s var(--ease);
+  flex: 0 0 auto;
+}
+.prospect-edit-btn:hover {
+  color: var(--red);
+  background: rgba(213, 0, 0, 0.08);
+  border-color: rgba(213, 0, 0, 0.2);
+}
+
+/* ---------- MODALS ---------- */
+body.modal-open {
+  overflow: hidden;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 18, 22, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  animation: fadeIn .2s var(--ease) both;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  animation: modalIn .28s var(--ease) both;
+}
+@keyframes modalIn { from { transform: scale(0.95) translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 4px;
+}
+.modal-close:hover { color: var(--ink); }
+
+.modal-body {
+  padding: 20px 22px;
+}
+.modal-desc {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.45;
+  margin: 0 0 16px;
+}
+
+/* Modal Form Styles */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.form-group label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: inherit;
+  background: var(--card);
+  color: var(--ink);
+  transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+}
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(213,0,0,.10);
+}
+.form-row { display: flex; gap: 12px; }
+.form-row-2 > * { flex: 1; }
+
+.modal-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 18px 0;
+  color: var(--muted-2);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.modal-divider::before, .modal-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--line-soft);
+}
+.modal-divider span { padding: 0 10px; }
+
+/* Preset Hubs Grid */
+.preset-hubs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.preset-hub-card {
+  background: var(--card);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: all .18s var(--ease);
+}
+.preset-hub-card:hover {
+  border-color: var(--red);
+  background: rgba(213,0,0,0.04);
+  transform: translateY(-1px);
+}
+.preset-hub-card .hub-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.btn-modal-action {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all .18s var(--ease);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.btn-modal-action:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+.btn-modal-action:active { transform: scale(0.98); }
+
+.btn-modal-action.gps-btn {
+  background: linear-gradient(135deg, #15a05a, #0b804b);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 14px rgba(21,160,90,.3);
+}
+.btn-modal-action.gps-btn:hover {
+  box-shadow: 0 6px 20px rgba(21,160,90,.4);
+}
+
+.btn-modal-action.primary {
+  background: linear-gradient(135deg, var(--red-bright), var(--red));
+  color: #fff;
+  border: none;
+  box-shadow: var(--shadow-red);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+.modal-actions button { flex: 1; margin-bottom: 0; }
+.btn-ghost.danger {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.btn-ghost.danger:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: #ef4444;
+}
+
+.import-export-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.file-label {
+  cursor: pointer;
+}
+
+/* Dark mode for modals & toolbar */
+body.dark .route-start-pill {
+  background: var(--slate);
+  border-color: rgba(255,255,255,.08);
+}
+body.dark .btn-route-action {
+  background: var(--slate);
+  border-color: rgba(255,255,255,.1);
+  color: var(--ink);
+}
+body.dark .modal-card {
+  background: #17191e;
+  border-color: rgba(255,255,255,.1);
+}
+body.dark .preset-hub-card {
+  background: var(--slate);
+  border-color: rgba(255,255,255,.08);
+}
+body.dark .form-group input, body.dark .form-group select {
+  background: #121418;
+  border-color: rgba(255,255,255,.1);
+}
+body.dark .btn-modal-action {
+  background: var(--slate);
+  border-color: rgba(255,255,255,.1);
+}
+
+/* ============================================================
+   PHASE 3: MOBILE TOUCH UX & DIRECT NAVIGATION
+   ============================================================ */
+
+/* Stop actions container on stop rows */
+.stop-actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+/* Direct Navigation "Drive Here" button */
+.btn-stop-nav {
+  background: linear-gradient(135deg, var(--red), var(--red-dark));
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.1px;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  transition: all .18s var(--ease);
+}
+.btn-stop-nav:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-red);
+  filter: brightness(1.05);
+}
+.btn-stop-nav:active {
+  transform: scale(0.95);
+}
+
+/* Tactile Up/Down reorder buttons */
+.stop-reorder-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stop-reorder-btn {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  width: 22px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: all .15s var(--ease);
+}
+.stop-reorder-btn:hover:not([disabled]) {
+  color: var(--red);
+  border-color: var(--red);
+  background: rgba(213,0,0,0.06);
+}
+.stop-reorder-btn:active:not([disabled]) {
+  transform: scale(0.9);
+}
+
+/* Touch dragging styling */
+.stop-row.touch-dragging {
+  background: var(--card);
+  box-shadow: var(--shadow-lg);
+  opacity: 0.85;
+  transform: scale(1.02);
+  z-index: 10;
+}
+.stop-grip {
+  touch-action: none;
+  padding: 4px 6px;
+}
+
+body.dark .btn-stop-nav {
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+body.dark .stop-reorder-btn {
+  background: var(--slate);
+  border-color: rgba(255,255,255,.1);
+  color: var(--muted);
+}
