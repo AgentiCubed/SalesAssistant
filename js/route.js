@@ -1,81 +1,131 @@
 /* ============================================================
-   SALES COACH — PROSPECTING ROUTE PLANNER (Phase 3)
-   Leaflet + OpenStreetMap (no API key, $0).
-   Features:
-   - Live GPS Device Location & Preset Territory Hubs
-   - Dynamic Prospect Database (Full Local CRUD)
-   - CSV / JSON Territory Import & Export
-   - Full-text Prospect Search & Segment Filtering
-   - Touch-Safe Drag Reordering & Tactile ▲ / ▼ Controls
-   - Per-Stop One-Tap Navigation ("Drive Here")
-   - Hardened Multi-Stop Navigation (Google & Apple Maps)
-   - Resilient LocalStorage State Persistence
+   SALES COACH — SENIOR-FRIENDLY PROSPECTING ROUTE PLANNER
+   Zero-Emoji, High-Contrast, Paper-and-Pencil Architecture.
    ============================================================ */
 
 /* ---------- DEFAULT PROSPECT DATABASE (Addison County, VT) ---------- */
 const DEFAULT_PROSPECTS = [
-  { id: "p1",  name: "Foster Motors (Service Bay)",   type: "Auto / Dealership",   seg: "auto",       lat: 44.0153, lng: -73.1672, addr: "Rte 7 S, Middlebury, VT",      hot: "Brake cleaner + shop towels burn fast here" },
-  { id: "p2",  name: "Champlain Valley Equipment",     type: "Ag / Heavy Equip",    seg: "forklift",   lat: 44.1670, lng: -73.2540, addr: "Rte 7, Vergennes, VT",         hot: "Hydraulics, grease, cutting fluids" },
-  { id: "p3",  name: "G. Stone Motors",                type: "Auto / Dealership",   seg: "auto",       lat: 44.1610, lng: -73.2490, addr: "Rte 7, Vergennes, VT",         hot: "Multi-bay — bulk chemicals + fasteners" },
-  { id: "p4",  name: "Vermont Hard Cider (Facilities)",type: "Food / Beverage",     seg: "food",       lat: 44.1735, lng: -73.2120, addr: "Middlebury, VT",               hot: "Food-grade lube (H1), SS fasteners, PPE" },
-  { id: "p5",  name: "ACSU Bus Garage",                type: "Fleet / School Bus",  seg: "schoolbus",  lat: 44.0205, lng: -73.1740, addr: "Charles Ave, Middlebury, VT",  hot: "Fleet PM — DEF-safe degreaser, wipes" },
-  { id: "p6",  name: "Vermont Soap",                   type: "Mfg / Facilities",    seg: "facilities", lat: 44.0120, lng: -73.1620, addr: "Exchange St, Middlebury, VT",  hot: "Janitorial, washroom, maintenance chem" },
-  { id: "p7",  name: "Maple Landmark (Wood Mfg)",      type: "Mfg / Precision",     seg: "precision",  lat: 44.0185, lng: -73.1585, addr: "Exchange St, Middlebury, VT",  hot: "Dust, fasteners, adhesives, blades" },
-  { id: "p8",  name: "Bristol Collision",              type: "Auto / Body Shop",    seg: "auto",       lat: 44.1340, lng: -73.0790, addr: "Bristol, VT",                  hot: "Body filler, abrasives, masking, PPE" },
-  { id: "p9",  name: "Addison County Carwash",         type: "Carwash",             seg: "carwash",    lat: 44.0090, lng: -73.1690, addr: "Court St, Middlebury, VT",     hot: "Foaming presoak, brushes, wheel cleaner" },
-  { id: "p10", name: "Porter Medical (Plant Ops)",     type: "Healthcare / Facil.", seg: "facilities", lat: 44.0070, lng: -73.1755, addr: "South St, Middlebury, VT",     hot: "Maintenance, electrical, lockout, wipes" },
-  { id: "p11", name: "Otter Creek Brewing",            type: "Food / Beverage",     seg: "food",       lat: 44.0140, lng: -73.1710, addr: "Exchange St, Middlebury, VT",  hot: "Food-grade, SS fasteners, hose clamps" },
-  { id: "p12", name: "Vergennes Auto",                 type: "Auto / Service",      seg: "auto",       lat: 44.1665, lng: -73.2560, addr: "Main St, Vergennes, VT",       hot: "Penetrant, brake clean, zip ties" },
-  { id: "p13", name: "Middlebury College (Facilities)",type: "Institution / Facil.", seg: "facilities", lat: 44.0080, lng: -73.1770, addr: "College St, Middlebury, VT",   hot: "Big campus PM — janitorial, electrical, HVAC" },
-  { id: "p14", name: "Casella Waste (Yard)",            type: "Fleet / Waste",        seg: "schoolbus",  lat: 44.0240, lng: -73.1490, addr: "Middlebury, VT",               hot: "Heavy fleet — hydraulics, DEF, heavy degreaser" },
-  { id: "p15", name: "Bristol Electronics",             type: "Mfg / Precision",      seg: "precision",  lat: 44.1330, lng: -73.0810, addr: "Bristol, VT",                  hot: "Solar installs — fasteners, sealants, PPE" },
-  { id: "p16", name: "Champlain Orchards (Equip)",      type: "Ag / Equip",           seg: "forklift",   lat: 44.0790, lng: -73.2710, addr: "Shoreham, VT",                hot: "Tractors, sprayers — grease, hydraulics, filters" },
-  { id: "p17", name: "Vergennes Car Wash",              type: "Carwash",              seg: "carwash",    lat: 44.1690, lng: -73.2530, addr: "Vergennes, VT",               hot: "Presoak, foaming detergent, spot-free" },
-  { id: "p18", name: "Otter Valley Auto Body",          type: "Auto / Body Shop",     seg: "auto",       lat: 43.8990, lng: -73.1640, addr: "Brandon, VT",                 hot: "Filler, primer, abrasives, masking" },
-  { id: "p19", name: "Mack Molding (Plant)",            type: "Mfg / Precision",      seg: "precision",  lat: 43.8870, lng: -73.1490, addr: "Brandon, VT",                 hot: "Injection molding — cutting fluid, fasteners, lockout" },
-  { id: "p20", name: "Rosie's Restaurant (Kitchen)",    type: "Food / Beverage",      seg: "food",       lat: 44.0030, lng: -73.1660, addr: "Rte 7, Middlebury, VT",       hot: "Food-grade lube, SS hardware, drain maint." },
-  { id: "p21", name: "Addison Central School (Maint.)", type: "Institution / Facil.", seg: "facilities", lat: 44.0420, lng: -73.1830, addr: "Middlebury, VT",               hot: "Custodial, HVAC filters, electrical, PPE" },
-  { id: "p22", name: "Vermont Field Sports (Fleet)",    type: "Fleet / Service",      seg: "schoolbus",  lat: 44.0190, lng: -73.1620, addr: "Rte 7, Middlebury, VT",       hot: "Service fleet — brake clean, penetrant, wipes" },
+  { id: "p1",  name: "Foster Motors (Service Bay)",   type: "Auto / Dealership",   seg: "auto",       lat: 44.0153, lng: -73.1672, addr: "Rte 7 S, Middlebury, VT",      phone: "(802) 388-9961", hot: "Brake cleaner and shop towels burn fast here" },
+  { id: "p2",  name: "Champlain Valley Equipment",     type: "Ag / Heavy Equip",    seg: "forklift",   lat: 44.1670, lng: -73.2540, addr: "Rte 7, Vergennes, VT",         phone: "(802) 877-3118", hot: "Hydraulics, grease, cutting fluids" },
+  { id: "p3",  name: "G. Stone Motors",                type: "Auto / Dealership",   seg: "auto",       lat: 44.1610, lng: -73.2490, addr: "Rte 7, Vergennes, VT",         phone: "(802) 877-3600", hot: "Multi-bay — bulk chemicals and fasteners" },
+  { id: "p4",  name: "Vermont Hard Cider (Facilities)",type: "Food / Beverage",     seg: "food",       lat: 44.1735, lng: -73.2120, addr: "Middlebury, VT",               phone: "(802) 388-0700", hot: "Food-grade lube (H1), SS fasteners, PPE" },
+  { id: "p5",  name: "ACSU Bus Garage",                type: "Fleet / School Bus",  seg: "schoolbus",  lat: 44.0205, lng: -73.1740, addr: "Charles Ave, Middlebury, VT",  phone: "(802) 382-1274", hot: "Fleet PM — DEF-safe degreaser, wipes" },
+  { id: "p6",  name: "Vermont Soap",                   type: "Mfg / Facilities",    seg: "facilities", lat: 44.0120, lng: -73.1620, addr: "Exchange St, Middlebury, VT",  phone: "(802) 388-4308", hot: "Janitorial, washroom, maintenance chem" },
+  { id: "p7",  name: "Maple Landmark (Wood Mfg)",      type: "Mfg / Precision",     seg: "precision",  lat: 44.0185, lng: -73.1585, addr: "Exchange St, Middlebury, VT",  phone: "(802) 388-0627", hot: "Dust, fasteners, adhesives, blades" },
+  { id: "p8",  name: "Bristol Collision",              type: "Auto / Body Shop",    seg: "auto",       lat: 44.1340, lng: -73.0790, addr: "Bristol, VT",                  phone: "(802) 453-2396", hot: "Body filler, abrasives, masking, PPE" },
+  { id: "p9",  name: "Addison County Carwash",         type: "Carwash",             seg: "carwash",    lat: 44.0090, lng: -73.1690, addr: "Court St, Middlebury, VT",     phone: "(802) 388-6622", hot: "Foaming presoak, brushes, wheel cleaner" },
+  { id: "p10", name: "Porter Medical (Plant Ops)",     type: "Healthcare / Facil.", seg: "facilities", lat: 44.0070, lng: -73.1755, addr: "South St, Middlebury, VT",     phone: "(802) 388-4701", hot: "Maintenance, electrical, lockout, wipes" },
+  { id: "p11", name: "Otter Creek Brewing",            type: "Food / Beverage",     seg: "food",       lat: 44.0140, lng: -73.1710, addr: "Exchange St, Middlebury, VT",  phone: "(802) 388-1062", hot: "Food-grade, SS fasteners, hose clamps" },
+  { id: "p12", name: "Vergennes Auto",                 type: "Auto / Service",      seg: "auto",       lat: 44.1665, lng: -73.2560, addr: "Main St, Vergennes, VT",       phone: "(802) 877-2244", hot: "Penetrant, brake clean, zip ties" },
+  { id: "p13", name: "Middlebury College (Facilities)",type: "Institution / Facil.", seg: "facilities", lat: 44.0080, lng: -73.1770, addr: "College St, Middlebury, VT",   phone: "(802) 443-5000", hot: "Big campus PM — janitorial, electrical, HVAC" },
+  { id: "p14", name: "Casella Waste (Yard)",            type: "Fleet / Waste",        seg: "schoolbus",  lat: 44.0240, lng: -73.1490, addr: "Middlebury, VT",               phone: "(802) 388-4690", hot: "Heavy fleet — hydraulics, DEF, heavy degreaser" },
+  { id: "p15", name: "Bristol Electronics",             type: "Mfg / Precision",      seg: "precision",  lat: 44.1330, lng: -73.0810, addr: "Bristol, VT",                  phone: "(802) 453-4884", hot: "Solar installs — fasteners, sealants, PPE" },
+  { id: "p16", name: "Champlain Orchards (Equip)",      type: "Ag / Equip",           seg: "forklift",   lat: 44.0790, lng: -73.2710, addr: "Shoreham, VT",                phone: "(802) 897-2777", hot: "Tractors, sprayers — grease, hydraulics, filters" },
+  { id: "p17", name: "Vergennes Car Wash",              type: "Carwash",              seg: "carwash",    lat: 44.1690, lng: -73.2530, addr: "Vergennes, VT",               phone: "(802) 877-9911", hot: "Presoak, foaming detergent, spot-free" },
+  { id: "p18", name: "Otter Valley Auto Body",          type: "Auto / Body Shop",     seg: "auto",       lat: 43.8990, lng: -73.1640, addr: "Brandon, VT",                 phone: "(802) 247-3000", hot: "Filler, primer, abrasives, masking" },
+  { id: "p19", name: "Mack Molding (Plant)",            type: "Mfg / Precision",      seg: "precision",  lat: 43.8870, lng: -73.1490, addr: "Brandon, VT",                 phone: "(802) 247-4000", hot: "Injection molding — cutting fluid, fasteners, lockout" },
+  { id: "p20", name: "Rosie's Restaurant (Kitchen)",    type: "Food / Beverage",      seg: "food",       lat: 44.0030, lng: -73.1660, addr: "Rte 7, Middlebury, VT",       phone: "(802) 388-7052", hot: "Food-grade lube, SS hardware, drain maint." },
+  { id: "p21", name: "Addison Central School (Maint.)", type: "Institution / Facil.", seg: "facilities", lat: 44.0420, lng: -73.1830, addr: "Middlebury, VT",               phone: "(802) 382-1200", hot: "Custodial, HVAC filters, electrical, PPE" },
+  { id: "p22", name: "Vermont Field Sports (Fleet)",    type: "Fleet / Service",      seg: "schoolbus",  lat: 44.0190, lng: -73.1620, addr: "Rte 7, Middlebury, VT",       phone: "(802) 388-3572", hot: "Service fleet — brake clean, penetrant, wipes" },
 ];
 
-/* Territory hub presets for fast one-tap switching */
+/* Preset territory starting hubs */
 const PRESET_HUBS = [
-  { name: "Middlebury, VT (Rte 7)", lat: 44.0153, lng: -73.1672 },
-  { name: "Vergennes, VT (Main St)", lat: 44.1670, lng: -73.2540 },
-  { name: "Rutland, VT (Rte 7 N)", lat: 43.6106, lng: -72.9726 },
-  { name: "Burlington, VT (Shelburne Rd)", lat: 44.4759, lng: -73.2121 },
-  { name: "Montpelier, VT (State St)", lat: 44.2601, lng: -72.5754 },
+  { name: "Middlebury, VT (Route 7 Hub)", lat: 44.0153, lng: -73.1672 },
+  { name: "Vergennes, VT (Main Street)", lat: 44.1670, lng: -73.2540 },
+  { name: "Rutland, VT (Route 7 North)", lat: 43.6106, lng: -72.9726 },
+  { name: "Burlington, VT (Shelburne Road)", lat: 44.4759, lng: -73.2121 },
+  { name: "Montpelier, VT (State Street)", lat: 44.2601, lng: -72.5754 },
 ];
 
-/* Segment filter definitions */
+/* Customer segment classifications */
 const ROUTE_SEGMENTS = [
-  { id: "auto",       label: "Auto / Body",    icon: "🔧" },
-  { id: "food",       label: "Food / Bev",     icon: "🥫" },
-  { id: "facilities", label: "Facilities",     icon: "🏭" },
-  { id: "schoolbus",  label: "School Bus",     icon: "🚌" },
-  { id: "forklift",   label: "Ag / Equip",     icon: "🚜" },
-  { id: "carwash",    label: "Carwash",        icon: "🚿" },
-  { id: "precision",  label: "Precision Mfg",  icon: "⚙️" },
+  { id: "auto",       label: "Auto / Body Shop" },
+  { id: "food",       label: "Food & Beverage" },
+  { id: "facilities", label: "Plant Facilities" },
+  { id: "schoolbus",  label: "School Bus & Fleet" },
+  { id: "forklift",   label: "Ag & Heavy Equipment" },
+  { id: "carwash",    label: "Car Wash Facilities" },
+  { id: "precision",  label: "Precision Manufacturing" },
 ];
 
-/* ---------- PERSISTENCE STORAGE KEYS ---------- */
+/* ---------- LOCAL PERSISTENCE STORAGE KEYS ---------- */
 const STORAGE_KEY_ROUTE = "sc_route_state_v1";
 const STORAGE_KEY_PROSPECTS = "sc_prospects_v2";
+const STORAGE_KEY_NOTES = "sc_customer_notes_v1";
 
 /* Global in-memory route state */
 const routeState = {
   map: null,
   layer: null,
-  prospects: [],        // loaded dynamic prospects array
-  selected: [],         // selected prospect ids
-  segFilter: new Set(), // active segment filters (empty = all)
-  searchQuery: "",      // active text search filter
-  start: { lat: 44.0153, lng: -73.1672, name: "Middlebury, Rte 7", isGps: false },
-  ordered: [],          // ordered prospect objects
-  manualOrder: false,   // true if user reordered manually
-  visited: [],          // prospect ids marked completed
+  prospects: [],
+  selected: [],
+  segFilter: new Set(),
+  searchQuery: "",
+  start: { lat: 44.0153, lng: -73.1672, name: "Middlebury, VT (Route 7 Hub)", isGps: false },
+  ordered: [],
+  manualOrder: false,
+  visited: [],
   inited: false,
 };
+
+/* ---------- CUSTOMER NOTES & SCRATCHPAD ---------- */
+function getAllCustomerNotes() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_NOTES);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function getCustomerNote(id) {
+  const notes = getAllCustomerNotes();
+  return notes[id] || { text: "", updated: "" };
+}
+
+function saveCustomerNote(id, text) {
+  try {
+    const notes = getAllCustomerNotes();
+    const timeStr = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    const dateStr = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const stamp = "Saved: " + dateStr + " at " + timeStr;
+    notes[id] = { text: text, updated: stamp };
+    localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(notes));
+    return stamp;
+  } catch (e) {
+    return "Saved locally";
+  }
+}
+
+/* ---------- TOP STATUS BANNER WITH UNDO ---------- */
+let toastTimer = null;
+function showToast(message, undoAction = null) {
+  const toast = document.getElementById("statusToast");
+  const msgEl = document.getElementById("statusToastMsg");
+  const undoBtn = document.getElementById("statusToastUndo");
+  if (!toast || !msgEl) return;
+
+  msgEl.textContent = message;
+  if (undoAction && undoBtn) {
+    undoBtn.style.display = "inline-block";
+    undoBtn.onclick = () => {
+      undoAction();
+      hideToast();
+    };
+  } else if (undoBtn) {
+    undoBtn.style.display = "none";
+  }
+
+  toast.classList.add("visible");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => hideToast(), 5500);
+}
+
+function hideToast() {
+  const toast = document.getElementById("statusToast");
+  if (toast) toast.classList.remove("visible");
+}
 
 /* ---------- PROSPECT REPOSITORY (CRUD) ---------- */
 function getProspects() {
@@ -86,7 +136,7 @@ function getProspects() {
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch (e) {
-    console.warn("Could not load stored prospects, falling back to defaults:", e);
+    console.warn("Could not load stored prospects:", e);
   }
   saveProspects(DEFAULT_PROSPECTS);
   return DEFAULT_PROSPECTS.slice();
@@ -107,7 +157,7 @@ function addProspect(item) {
   const id = "p_" + Date.now();
   let lat = Number(item.lat);
   let lng = Number(item.lng);
-  
+
   if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
     lat = Number((routeState.start.lat + (Math.random() - 0.5) * 0.04).toFixed(4));
     lng = Number((routeState.start.lng + (Math.random() - 0.5) * 0.04).toFixed(4));
@@ -115,26 +165,27 @@ function addProspect(item) {
 
   const newProspect = {
     id: id,
-    name: (item.name || "Untitled Prospect").trim(),
+    name: (item.name || "Untitled Customer").trim(),
     type: (item.type || "Commercial / Industrial").trim(),
     seg: item.seg || "auto",
     lat: lat,
     lng: lng,
     addr: (item.addr || "Local Territory").trim(),
+    phone: (item.phone || "(802) 555-0100").trim(),
     hot: (item.hot || "Opportunity identified").trim(),
   };
 
   list.unshift(newProspect);
   saveProspects(list);
-  
+
   if (!routeState.selected.includes(id)) {
     routeState.selected.push(id);
     saveRouteState();
   }
-  
+
   renderProspectList();
   rebuildRoute();
-  setCoach('Added "' + newProspect.name + '" to your prospect directory and today\\'s route.');
+  showToast('Customer added: "' + newProspect.name + '"', () => deleteProspect(id));
   return newProspect;
 }
 
@@ -158,20 +209,22 @@ function updateProspect(id, item) {
     lat: lat,
     lng: lng,
     addr: (item.addr || list[idx].addr).trim(),
+    phone: (item.phone || list[idx].phone || "").trim(),
     hot: (item.hot || list[idx].hot).trim(),
   };
 
   saveProspects(list);
   renderProspectList();
   rebuildRoute();
-  setCoach('Updated "' + list[idx].name + '".');
+  showToast('Customer record updated: "' + list[idx].name + '"');
   return list[idx];
 }
 
 function deleteProspect(id) {
   let list = getProspects();
   const target = list.find(p => p.id === id);
-  const name = target ? target.name : "Prospect";
+  const prevList = list.slice();
+  const name = target ? target.name : "Customer";
   list = list.filter(p => p.id !== id);
   saveProspects(list);
 
@@ -181,7 +234,11 @@ function deleteProspect(id) {
 
   renderProspectList();
   rebuildRoute();
-  setCoach('Removed "' + name + '" from territory.');
+  showToast('Removed "' + name + '"', () => {
+    saveProspects(prevList);
+    renderProspectList();
+    rebuildRoute();
+  });
 }
 
 function resetProspectsToDefault() {
@@ -192,7 +249,7 @@ function resetProspectsToDefault() {
   saveRouteState();
   renderProspectList();
   rebuildRoute();
-  setCoach("Reset territory to default 22 Addison County prospects.");
+  showToast("Reset customer list to default 22 territory accounts.");
 }
 
 function updateProspectCountBadge() {
@@ -200,7 +257,7 @@ function updateProspectCountBadge() {
   if (badge) badge.textContent = routeState.prospects.length;
 }
 
-/* ---------- ROUTE STATE PERSISTENCE ---------- */
+/* ---------- ROUTE PERSISTENCE ---------- */
 function saveRouteState() {
   try {
     const data = {
@@ -277,7 +334,7 @@ function routeDistance(ordered) {
   return total;
 }
 
-/* ---------- LIVE GPS & START LOCATION MANAGEMENT ---------- */
+/* ---------- START LOCATION & LIVE GPS ---------- */
 function setStartLocation(loc, isGps = false) {
   routeState.start = {
     lat: Number(loc.lat),
@@ -288,21 +345,21 @@ function setStartLocation(loc, isGps = false) {
   saveRouteState();
   renderStartLocationUI();
   rebuildRoute();
-  setCoach(isGps ? "Acquired live GPS fix. Route recalculated from your truck." : 'Route start set to "' + routeState.start.name + '".');
+  showToast(isGps ? "Acquired live GPS location from device" : 'Starting point set to: "' + routeState.start.name + '"');
 }
 
 function requestGpsLocation() {
   const btn = document.getElementById("btnUseGps");
   if (btn) {
     btn.classList.add("loading");
-    btn.innerHTML = "<span>📡</span> Acquiring GPS satellites...";
+    btn.textContent = "Acquiring Device GPS...";
   }
 
   if (!navigator.geolocation) {
-    alert("Geolocation is not supported by your browser or device.");
+    alert("Geolocation is not supported by your device browser.");
     if (btn) {
       btn.classList.remove("loading");
-      btn.innerHTML = "<span>📡</span> Use Current Device GPS";
+      btn.textContent = "Use Current Device GPS";
     }
     return;
   }
@@ -311,19 +368,19 @@ function requestGpsLocation() {
     (pos) => {
       const lat = Number(pos.coords.latitude.toFixed(4));
       const lng = Number(pos.coords.longitude.toFixed(4));
-      setStartLocation({ lat, lng, name: "Live GPS Location" }, true);
+      setStartLocation({ lat, lng, name: "Live GPS (Current Vehicle Location)" }, true);
       if (btn) {
         btn.classList.remove("loading");
-        btn.innerHTML = "<span>✓</span> GPS Acquired (" + lat + ", " + lng + ")";
+        btn.textContent = "GPS Fixed (" + lat + ", " + lng + ")";
       }
       setTimeout(() => closeModal("modalStartLoc"), 400);
     },
     (err) => {
       console.warn("GPS error:", err);
-      alert("Unable to retrieve device location (" + err.message + "). Please select a preset hub or enter coordinates manually.");
+      alert("Unable to acquire GPS coordinates (" + err.message + "). Please select a preset hub or enter coordinates.");
       if (btn) {
         btn.classList.remove("loading");
-        btn.innerHTML = "<span>📡</span> Use Current Device GPS";
+        btn.textContent = "Use Current Device GPS";
       }
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
@@ -342,7 +399,7 @@ function renderPresetHubs() {
   if (!grid) return;
   grid.innerHTML = PRESET_HUBS.map(hub => `
     <button class="preset-hub-card" data-hub-name="${hub.name}" data-lat="${hub.lat}" data-lng="${hub.lng}">
-      <span class="hub-icon">🏢</span>
+      <span class="hub-label">[HUB]</span>
       <span class="hub-name">${hub.name}</span>
     </button>
   `).join("");
@@ -359,10 +416,10 @@ function renderPresetHubs() {
   });
 }
 
-/* ---------- CSV & JSON IMPORT / EXPORT ---------- */
+/* ---------- CSV & JSON DATA IMPORT / EXPORT ---------- */
 function exportProspectsCSV() {
   const list = routeState.prospects;
-  const headers = ["id", "name", "type", "seg", "lat", "lng", "addr", "hot"];
+  const headers = ["id", "name", "type", "seg", "lat", "lng", "addr", "phone", "hot"];
   const rows = list.map(p => [
     p.id,
     '"' + (p.name || "").replace(/"/g, '""') + '"',
@@ -371,6 +428,7 @@ function exportProspectsCSV() {
     p.lat,
     p.lng,
     '"' + (p.addr || "").replace(/"/g, '""') + '"',
+    '"' + (p.phone || "").replace(/"/g, '""') + '"',
     '"' + (p.hot || "").replace(/"/g, '""') + '"',
   ].join(","));
   const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\\n");
@@ -381,7 +439,7 @@ function exportProspectsCSV() {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  setCoach("Exported " + list.length + " prospects to CSV.");
+  showToast("Exported " + list.length + " accounts to CSV");
 }
 
 function exportProspectsJSON() {
@@ -393,7 +451,7 @@ function exportProspectsJSON() {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  setCoach("Exported " + list.length + " prospects to JSON.");
+  showToast("Exported " + list.length + " accounts to JSON");
 }
 
 function handleFileImport(file) {
@@ -421,7 +479,8 @@ function handleFileImport(file) {
                 lat: Number(clean(parts[4])) || (routeState.start.lat + (Math.random() - 0.5) * 0.04),
                 lng: Number(clean(parts[5])) || (routeState.start.lng + (Math.random() - 0.5) * 0.04),
                 addr: clean(parts[6]),
-                hot: parts[7] ? clean(parts[7]) : "Prospect lead",
+                phone: parts[7] ? clean(parts[7]) : "(802) 555-0100",
+                hot: parts[8] ? clean(parts[8]) : "Account lead",
               });
             }
           }
@@ -433,36 +492,35 @@ function handleFileImport(file) {
         renderProspectList();
         rebuildRoute();
         closeModal("modalImportExport");
-        setCoach("Successfully imported " + imported.length + " prospects into your territory.");
+        showToast("Successfully imported " + imported.length + " accounts from file");
       } else {
-        alert("Could not parse valid prospects from the file. Please check formatting.");
+        alert("Could not parse valid customer records from the file.");
       }
     } catch (err) {
-      console.error("Import error:", err);
       alert("Error parsing file: " + err.message);
     }
   };
   reader.readAsText(file);
 }
 
-/* ---------- LEAFLET ICONS ---------- */
+/* ---------- LEAFLET ICONS (HIGH-CONTRAST MONOCHROME/RED) ---------- */
 function brandIcon(n, hot, visited) {
   const classes = ["route-pin"];
   if (hot) classes.push("hot");
   if (visited) classes.push("visited");
   return L.divIcon({
     className: classes.join(" "),
-    html: '<div class="route-pin-inner">' + (visited ? "✓" : n) + "</div>",
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
+    html: '<div class="route-pin-inner">' + (visited ? "DONE" : n) + "</div>",
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
   });
 }
 function startIcon() {
   return L.divIcon({
     className: "route-pin start",
-    html: '<div class="route-pin-inner">★</div>',
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
+    html: '<div class="route-pin-inner">START</div>',
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
   });
 }
 
@@ -473,7 +531,7 @@ function renderRouteSegments() {
   wrap.innerHTML = "";
   const all = document.createElement("button");
   all.className = "chip" + (routeState.segFilter.size === 0 ? " selected" : "");
-  all.innerHTML = "<span>📍</span>All";
+  all.textContent = "All Categories";
   all.onclick = () => {
     routeState.segFilter.clear();
     saveRouteState();
@@ -484,7 +542,7 @@ function renderRouteSegments() {
   ROUTE_SEGMENTS.forEach(s => {
     const chip = document.createElement("button");
     chip.className = "chip" + (routeState.segFilter.has(s.id) ? " selected" : "");
-    chip.innerHTML = "<span>" + s.icon + "</span>" + s.label;
+    chip.textContent = s.label;
     chip.onclick = () => {
       if (routeState.segFilter.has(s.id)) routeState.segFilter.delete(s.id);
       else routeState.segFilter.add(s.id);
@@ -496,7 +554,7 @@ function renderRouteSegments() {
   });
 }
 
-/* ---------- RENDER: PROSPECT PICK LIST ---------- */
+/* ---------- RENDER: PROSPECT DIRECTORY & SCRATCHPAD ---------- */
 function visibleProspects() {
   let list = routeState.prospects;
   if (routeState.segFilter.size > 0) {
@@ -508,6 +566,7 @@ function visibleProspects() {
       (p.name && p.name.toLowerCase().includes(q)) ||
       (p.addr && p.addr.toLowerCase().includes(q)) ||
       (p.type && p.type.toLowerCase().includes(q)) ||
+      (p.phone && p.phone.toLowerCase().includes(q)) ||
       (p.hot && p.hot.toLowerCase().includes(q))
     );
   }
@@ -518,9 +577,9 @@ function renderProspectList() {
   const out = $("#prospectList");
   if (!out) return;
   const list = visibleProspects();
-  
+
   if (!list.length) {
-    out.innerHTML = '<div class="empty">No prospects matching filter. Tap "➕ Add Prospect" to add one.</div>';
+    out.innerHTML = '<div class="empty">No accounts match this search filter. Tap "Add Customer" to add one.</div>';
     return;
   }
 
@@ -528,25 +587,44 @@ function renderProspectList() {
     const on = routeState.selected.includes(p.id);
     const isDone = routeState.visited.includes(p.id);
     const cardClasses = "prospect-card" + (on ? " added" : "") + (isDone ? " visited" : "");
-    const checkText = isDone ? "✓" : (on ? "✓" : "+");
-    const badgeHtml = isDone ? ' <span class="done-badge">Visited</span>' : '';
+    const noteData = getCustomerNote(p.id);
+    const phoneLink = p.phone ? `<a href="tel:${p.phone.replace(/[^0-9]/g, '')}" class="prospect-phone-link" title="Call ${p.name}">${p.phone}</a>` : "";
+
     return (
       '<div class="' + cardClasses + '" data-pid="' + p.id + '">' +
-        '<button class="prospect-check" data-action="toggle-route" data-pid="' + p.id + '">' + checkText + '</button>' +
-        '<div class="prospect-main" data-action="toggle-route" data-pid="' + p.id + '">' +
-          '<span class="prospect-name">' + p.name + badgeHtml + '</span>' +
-          '<span class="prospect-meta">' + p.type + ' · ' + p.addr + '</span>' +
-          '<span class="prospect-hot">🔥 ' + p.hot + '</span>' +
+        '<div class="prospect-card-header">' +
+          '<label class="prospect-checkbox-label">' +
+            '<input type="checkbox" class="checkbox-large" data-action="toggle-route" data-pid="' + p.id + '"' + (on ? ' checked' : '') + ' />' +
+            '<span class="checkbox-custom"></span>' +
+            '<span class="prospect-name">' + p.name + '</span>' +
+          '</label>' +
+          (isDone ? '<span class="status-pill visited">[COMPLETED]</span>' : (on ? '<span class="status-pill on-route">[ON ROUTE]</span>' : '')) +
         '</div>' +
-        '<button class="prospect-edit-btn" data-action="edit-prospect" data-pid="' + p.id + '" title="Edit details">✎</button>' +
+        '<div class="prospect-details-grid">' +
+          '<div class="pd-row"><b>Category:</b> <span>' + p.type + '</span></div>' +
+          '<div class="pd-row"><b>Address:</b> <span>' + p.addr + '</span></div>' +
+          (p.phone ? '<div class="pd-row"><b>Direct Phone:</b> <span>' + phoneLink + '</span></div>' : '') +
+          '<div class="pd-row"><b>Opportunities:</b> <span>' + p.hot + '</span></div>' +
+        '</div>' +
+        '<div class="customer-scratchpad">' +
+          '<div class="scratchpad-header">' +
+            '<label class="scratchpad-label">MY CALL NOTES & FOLLOW-UPS:</label>' +
+            '<span class="scratchpad-status" id="noteStatus_' + p.id + '">' + (noteData.updated || "") + '</span>' +
+          '</div>' +
+          '<textarea class="scratchpad-textarea" data-pid="' + p.id + '" placeholder="Type call notes, decision maker names, or agreed next steps here...">' + (noteData.text || "") + '</textarea>' +
+        '</div>' +
+        '<div class="prospect-card-actions">' +
+          '<button class="btn-table-action" data-action="drive-stop" data-pid="' + p.id + '">Drive to This Stop</button>' +
+          '<button class="btn-table-action secondary" data-action="edit-prospect" data-pid="' + p.id + '">Edit Customer Record</button>' +
+        '</div>' +
       '</div>'
     );
   }).join("");
 
-  $$("#prospectList [data-action='toggle-route']").forEach(el => {
-    el.onclick = (e) => {
-      e.stopPropagation();
-      const id = el.dataset.pid || el.closest(".prospect-card").dataset.pid;
+  // Checkbox toggle handlers
+  $$("#prospectList input[data-action='toggle-route']").forEach(cb => {
+    cb.onchange = () => {
+      const id = cb.dataset.pid;
       const i = routeState.selected.indexOf(id);
       if (i >= 0) {
         routeState.selected.splice(i, 1);
@@ -561,11 +639,23 @@ function renderProspectList() {
     };
   });
 
+  // Direct drive handlers
+  $$("#prospectList [data-action='drive-stop']").forEach(btn => {
+    btn.onclick = () => openSingleStopNav(btn.dataset.pid);
+  });
+
+  // Edit customer handlers
   $$("#prospectList [data-action='edit-prospect']").forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.pid;
-      openAddProspectModal(id);
+    btn.onclick = () => openAddProspectModal(btn.dataset.pid);
+  });
+
+  // Auto-saving scratchpad notes
+  $$("#prospectList .scratchpad-textarea").forEach(ta => {
+    ta.oninput = () => {
+      const pid = ta.dataset.pid;
+      const stamp = saveCustomerNote(pid, ta.value);
+      const statusEl = document.getElementById("noteStatus_" + pid);
+      if (statusEl) statusEl.textContent = stamp;
     };
   });
 }
@@ -620,7 +710,7 @@ function rebuildRoute() {
   routeState.ordered.forEach((p, i) => {
     const isVisited = routeState.visited.includes(p.id);
     L.marker([p.lat, p.lng], { icon: brandIcon(i + 1, true, isVisited) })
-      .bindPopup('<b>' + (i + 1) + '. ' + p.name + '</b>' + (isVisited ? ' (Visited)' : '') + '<br>' + p.type + '<br><i>' + p.hot + '</i>')
+      .bindPopup('<b>Stop ' + (i + 1) + ': ' + p.name + '</b>' + (isVisited ? ' [COMPLETED]' : '') + '<br>' + p.type + '<br><i>' + p.hot + '</i>')
       .addTo(routeState.layer);
   });
 
@@ -628,7 +718,7 @@ function rebuildRoute() {
   if (routeState.ordered.length) {
     const pts = [[routeState.start.lat, routeState.start.lng],
                  ...routeState.ordered.map(p => [p.lat, p.lng])];
-    L.polyline(pts, { color: "#d50000", weight: 4, opacity: 0.85, dashArray: "1 8", lineCap: "round" }).addTo(routeState.layer);
+    L.polyline(pts, { color: "#d50000", weight: 5, opacity: 0.9, lineCap: "round" }).addTo(routeState.layer);
     routeState.map.fitBounds(L.latLngBounds(pts).pad(0.25));
   }
 
@@ -640,15 +730,16 @@ function toggleStopVisited(id) {
   const idx = routeState.visited.indexOf(id);
   if (idx >= 0) {
     routeState.visited.splice(idx, 1);
+    showToast("Marked stop as pending");
   } else {
     routeState.visited.push(id);
+    showToast("Marked stop as completed", () => toggleStopVisited(id));
   }
   saveRouteState();
   renderProspectList();
   redrawFromOrdered();
 }
 
-/* Move stop up or down in manual order */
 function moveStop(index, delta) {
   const target = index + delta;
   if (target < 0 || target >= routeState.ordered.length) return;
@@ -660,9 +751,9 @@ function moveStop(index, delta) {
   routeState.manualOrder = true;
   saveRouteState();
   redrawFromOrdered();
+  showToast("Reordered stop sequence");
 }
 
-/* Direct point-to-point navigation to a single stop */
 function openSingleStopNav(id) {
   const p = routeState.prospects.find(x => x.id === id);
   if (!p) return;
@@ -676,14 +767,13 @@ function openSingleStopNav(id) {
   }
 }
 
-/* ---------- RENDER: SUMMARY + STOP LIST + HANDOFF ---------- */
+/* ---------- RENDER: SUMMARY / RUN SHEET ---------- */
 function renderRouteSummary() {
   const out = $("#routeSummary");
   if (!out) return;
   const ord = routeState.ordered;
   if (!ord.length) {
-    out.innerHTML = '<div class="empty">Pick prospects from the directory below to build your route. I\\'ll order them for the shortest drive and drop them on the map.</div>';
-    setCoach("Stack your day: tap the shops you're hitting, I'll plan the drive.");
+    out.innerHTML = '<div class="empty">No stops selected for today\\'s route. Check off accounts from the directory below to build your driving sheet.</div>';
     return;
   }
   const miles = routeDistance(ord).toFixed(1);
@@ -693,225 +783,119 @@ function renderRouteSummary() {
   const stops = ord.map((p, i) => {
     const isDone = routeState.visited.includes(p.id);
     const rowClass = "stop-row" + (isDone ? " is-visited" : "");
-    const numClass = "stop-num" + (isDone ? " visited" : "");
-    const numContent = isDone ? "✓" : String(i + 1);
-    const badgeHtml = isDone ? ' <span class="done-badge">Visited</span>' : '';
-    const checkContent = isDone ? "✓" : "";
+    const noteData = getCustomerNote(p.id);
     const isFirst = i === 0;
     const isLast = i === ord.length - 1;
 
     return (
-      '<li class="' + rowClass + '" draggable="true" data-idx="' + i + '" data-pid="' + p.id + '">' +
-        '<button class="stop-check-btn" data-pid="' + p.id + '" title="Toggle completed" aria-label="Mark ' + p.name + ' as visited">' +
-          '<span class="check-circle">' + checkContent + '</span>' +
-        '</button>' +
-        '<span class="stop-grip" aria-hidden="true" title="Drag to reorder">☰</span>' +
-        '<span class="' + numClass + '">' + numContent + '</span>' +
-        '<span class="stop-body">' +
-          '<b>' + p.name + badgeHtml + '</b>' +
-          '<span class="stop-sub">' + p.type + ' · ' + p.addr + '</span>' +
-        '</span>' +
-        '<div class="stop-actions-cell">' +
-          '<button class="btn-stop-nav" data-pid="' + p.id + '" title="Drive directly to this stop">🚗 Nav</button>' +
-          '<div class="stop-reorder-btns">' +
-            '<button class="stop-reorder-btn btn-up" data-idx="' + i + '"' + (isFirst ? ' disabled style="opacity:0.25;"' : '') + ' title="Move Up">▲</button>' +
-            '<button class="stop-reorder-btn btn-down" data-idx="' + i + '"' + (isLast ? ' disabled style="opacity:0.25;"' : '') + ' title="Move Down">▼</button>' +
+      '<li class="' + rowClass + '" data-idx="' + i + '" data-pid="' + p.id + '">' +
+        '<div class="stop-row-top">' +
+          '<label class="stop-checkbox-container">' +
+            '<input type="checkbox" class="checkbox-large" data-action="toggle-visited" data-pid="' + p.id + '"' + (isDone ? ' checked' : '') + ' />' +
+            '<span class="checkbox-custom"></span>' +
+            '<span class="stop-num-badge">STOP ' + (i + 1) + ' OF ' + ord.length + '</span>' +
+          '</label>' +
+          '<div class="stop-nudge-btns">' +
+            '<button class="btn-nudge btn-up" data-idx="' + i + '"' + (isFirst ? ' disabled' : '') + '>Move Up</button>' +
+            '<button class="btn-nudge btn-down" data-idx="' + i + '"' + (isLast ? ' disabled' : '') + '>Move Down</button>' +
           '</div>' +
+        '</div>' +
+        '<div class="stop-row-main">' +
+          '<div class="stop-title-row">' +
+            '<h4 class="stop-name">' + p.name + '</h4>' +
+            (isDone ? '<span class="status-pill visited">[VISITED]</span>' : '<span class="status-pill pending">[PENDING]</span>') +
+          '</div>' +
+          '<div class="stop-meta-line">' + p.type + ' &middot; ' + p.addr + '</div>' +
+          (p.phone ? '<div class="stop-meta-line">Direct Phone: <a href="tel:' + p.phone.replace(/[^0-9]/g, '') + '" class="phone-link">' + p.phone + '</a></div>' : '') +
+          '<div class="stop-hot-line"><b>Opportunity:</b> ' + p.hot + '</div>' +
+          (noteData.text ? '<div class="stop-note-preview"><b>My Notes:</b> ' + noteData.text + '</div>' : '') +
+        '</div>' +
+        '<div class="stop-row-actions">' +
+          '<button class="btn-action-drive" data-pid="' + p.id + '">Drive to Stop ' + (i + 1) + '</button>' +
         '</div>' +
       '</li>'
     );
   }).join("");
 
   const manual = routeState.manualOrder;
-  const orderLabel = manual ? "Custom order" : "Optimized order";
-  const orderActionHtml = manual
-    ? '<button id="btnReopt" class="chip-mini">⚡ Re-optimize</button>'
-    : '<span class="stop-head-hint">drag ☰ or tap ▲▼ · tap ○ to check off</span>';
+  const orderLabel = manual ? "Custom Rep Sequence" : "Auto-Optimized Driving Order";
 
   out.innerHTML = (
-    '<div class="route-stat-row">' +
-      '<div class="route-stat"><span class="rs-num">' + visitedCount + '/' + ord.length + '</span><span class="rs-lab">completed</span></div>' +
-      '<div class="route-stat"><span class="rs-num">' + miles + '</span><span class="rs-lab">miles</span></div>' +
-      '<div class="route-stat"><span class="rs-num">' + driveMin + '</span><span class="rs-lab">min drive</span></div>' +
+    '<div class="route-stat-box">' +
+      '<div class="route-stat-item"><span class="rs-label">Progress:</span><span class="rs-val">' + visitedCount + ' of ' + ord.length + ' Completed</span></div>' +
+      '<div class="route-stat-item"><span class="rs-label">Total Distance:</span><span class="rs-val">' + miles + ' Miles</span></div>' +
+      '<div class="route-stat-item"><span class="rs-label">Estimated Drive:</span><span class="rs-val">' + driveMin + ' Minutes</span></div>' +
     '</div>' +
-    '<div class="stop-head">' +
-      '<span class="stop-head-label">' + orderLabel + '</span>' +
-      orderActionHtml +
+    '<div class="run-sheet-toolbar">' +
+      '<div class="run-sheet-title-col">' +
+        '<h3 class="run-sheet-heading">Daily Clipboard Run Sheet</h3>' +
+        '<span class="run-sheet-sub">' + orderLabel + '</span>' +
+      '</div>' +
+      '<div class="run-sheet-actions">' +
+        (manual ? '<button id="btnReopt" class="btn-text-action">Re-Optimize Shortest Drive</button>' : '') +
+        '<button id="btnPrintRunSheet" class="btn-text-action">Print Run Sheet</button>' +
+      '</div>' +
     '</div>' +
     '<ol class="stop-list" id="stopList">' + stops + '</ol>' +
-    '<div class="route-actions">' +
-      '<button id="btnGoogle" class="btn-route gmaps">🗺️ Route in Google Maps</button>' +
-      '<button id="btnApple" class="btn-route amaps">🍎 Route in Apple Maps</button>' +
-      '<button id="btnClearRoute" class="btn-ghost">Clear route</button>' +
-    '</div>' +
-    '<p class="route-foot">Tap <b>🚗 Nav</b> on any stop for immediate directions, or launch the full optimized route to your phone\\'s nav.</p>'
+    '<div class="full-nav-actions">' +
+      '<button id="btnGoogle" class="btn-full-nav google">Start Entire Route in Google Maps</button>' +
+      '<button id="btnApple" class="btn-full-nav apple">Start Entire Route in Apple Maps</button>' +
+      '<button id="btnClearRoute" class="btn-full-nav clear">Clear Today\\'s Route</button>' +
+    '</div>'
   );
 
   $("#btnGoogle").onclick = openInGoogleMaps;
   $("#btnApple").onclick = openInAppleMaps;
   $("#btnClearRoute").onclick = () => {
-    routeState.selected = [];
-    routeState.ordered = [];
-    routeState.visited = [];
-    routeState.manualOrder = false;
-    saveRouteState();
-    renderProspectList();
-    rebuildRoute();
+    if (confirm("Are you sure you want to clear all stops from today's route?")) {
+      const prevSel = routeState.selected.slice();
+      routeState.selected = [];
+      routeState.ordered = [];
+      routeState.visited = [];
+      routeState.manualOrder = false;
+      saveRouteState();
+      renderProspectList();
+      rebuildRoute();
+      showToast("Cleared today's route", () => {
+        routeState.selected = prevSel;
+        saveRouteState();
+        renderProspectList();
+        rebuildRoute();
+      });
+    }
   };
+
   const reopt = $("#btnReopt");
   if (reopt) {
     reopt.onclick = () => {
       routeState.manualOrder = false;
       rebuildRoute();
       saveRouteState();
-      setCoach("Snapped back to the shortest drive. ⚡");
+      showToast("Recalculated shortest driving route");
     };
   }
 
-  // Check buttons
-  $$("#stopList .stop-check-btn").forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const pid = btn.dataset.pid;
-      toggleStopVisited(pid);
-    };
+  const printBtn = $("#btnPrintRunSheet");
+  if (printBtn) {
+    printBtn.onclick = () => window.print();
+  }
+
+  // Wire stop check-off inputs
+  $$("#stopList input[data-action='toggle-visited']").forEach(cb => {
+    cb.onchange = () => toggleStopVisited(cb.dataset.pid);
   });
 
-  // Direct Stop Nav buttons
-  $$("#stopList .btn-stop-nav").forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const pid = btn.dataset.pid;
-      openSingleStopNav(pid);
-    };
+  // Wire individual stop navigation
+  $$("#stopList .btn-action-drive").forEach(btn => {
+    btn.onclick = () => openSingleStopNav(btn.dataset.pid);
   });
 
-  // Tactile Reorder buttons
+  // Wire up/down nudge buttons
   $$("#stopList .btn-up").forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const idx = Number(btn.dataset.idx);
-      moveStop(idx, -1);
-    };
+    btn.onclick = () => moveStop(Number(btn.dataset.idx), -1);
   });
   $$("#stopList .btn-down").forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const idx = Number(btn.dataset.idx);
-      moveStop(idx, 1);
-    };
-  });
-
-  wireStopDragAndTouch();
-
-  if (visitedCount === ord.length && ord.length > 0) {
-    setCoach('All ' + ord.length + ' stops logged today. Great drive — lock down the follow-ups.');
-  } else {
-    setCoach(manual
-      ? 'Your call — ' + visitedCount + '/' + ord.length + ' stops done (' + miles + ' mi in your order). Hit "Route in Google Maps" or "🚗 Nav" on a stop.'
-      : 'Route locked: ' + visitedCount + '/' + ord.length + ' stops done (' + miles + ' mi). Ready to drive.');
-  }
-}
-
-/* ---------- DRAG & TOUCH REORDERING ---------- */
-function wireStopDragAndTouch() {
-  const list = $("#stopList");
-  if (!list) return;
-  let dragIdx = null;
-
-  // HTML5 Drag
-  $$(".stop-row", list).forEach(row => {
-    row.addEventListener("dragstart", (e) => {
-      dragIdx = +row.dataset.idx;
-      row.classList.add("dragging");
-      e.dataTransfer.effectAllowed = "move";
-      try { e.dataTransfer.setData("text/plain", String(dragIdx)); } catch (err) {}
-    });
-    row.addEventListener("dragend", () => {
-      row.classList.remove("dragging");
-      $$(".stop-row", list).forEach(r => r.classList.remove("drop-above", "drop-below"));
-    });
-    row.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      const over = +row.dataset.idx;
-      if (over === dragIdx) return;
-      const rect = row.getBoundingClientRect();
-      const below = (e.clientY - rect.top) > rect.height / 2;
-      $$(".stop-row", list).forEach(r => r.classList.remove("drop-above", "drop-below"));
-      row.classList.add(below ? "drop-below" : "drop-above");
-    });
-    row.addEventListener("drop", (e) => {
-      e.preventDefault();
-      const from = dragIdx;
-      let to = +row.dataset.idx;
-      if (from === null || from === to) return;
-      const rect = row.getBoundingClientRect();
-      const below = (e.clientY - rect.top) > rect.height / 2;
-      const arr = routeState.ordered.slice();
-      const [moved] = arr.splice(from, 1);
-      if (from < to) to -= 1;
-      if (below) to += 1;
-      to = Math.max(0, Math.min(arr.length, to));
-      arr.splice(to, 0, moved);
-      routeState.ordered = arr;
-      routeState.manualOrder = true;
-      saveRouteState();
-      redrawFromOrdered();
-    });
-  });
-
-  // Mobile Touch Reordering on the grip handle
-  let touchStartIdx = null;
-  let touchRow = null;
-
-  $$(".stop-grip", list).forEach(grip => {
-    grip.addEventListener("touchstart", (e) => {
-      touchRow = grip.closest(".stop-row");
-      if (!touchRow) return;
-      touchStartIdx = +touchRow.dataset.idx;
-      touchRow.classList.add("touch-dragging");
-    }, { passive: true });
-
-    grip.addEventListener("touchmove", (e) => {
-      if (touchStartIdx === null) return;
-      const touch = e.touches[0];
-      const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
-      const overRow = targetEl ? targetEl.closest(".stop-row") : null;
-      $$(".stop-row", list).forEach(r => r.classList.remove("drop-above", "drop-below"));
-      if (overRow && overRow !== touchRow) {
-        const rect = overRow.getBoundingClientRect();
-        const below = (touch.clientY - rect.top) > rect.height / 2;
-        overRow.classList.add(below ? "drop-below" : "drop-above");
-      }
-    }, { passive: true });
-
-    grip.addEventListener("touchend", (e) => {
-      if (touchStartIdx === null || !touchRow) return;
-      touchRow.classList.remove("touch-dragging");
-      const changedTouch = e.changedTouches[0];
-      const targetEl = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
-      const overRow = targetEl ? targetEl.closest(".stop-row") : null;
-      $$(".stop-row", list).forEach(r => r.classList.remove("drop-above", "drop-below"));
-      
-      if (overRow && overRow !== touchRow) {
-        const from = touchStartIdx;
-        let to = +overRow.dataset.idx;
-        const rect = overRow.getBoundingClientRect();
-        const below = (changedTouch.clientY - rect.top) > rect.height / 2;
-        const arr = routeState.ordered.slice();
-        const [moved] = arr.splice(from, 1);
-        if (from < to) to -= 1;
-        if (below) to += 1;
-        to = Math.max(0, Math.min(arr.length, to));
-        arr.splice(to, 0, moved);
-        routeState.ordered = arr;
-        routeState.manualOrder = true;
-        saveRouteState();
-        redrawFromOrdered();
-      }
-      touchStartIdx = null;
-      touchRow = null;
-    });
+    btn.onclick = () => moveStop(Number(btn.dataset.idx), 1);
   });
 }
 
@@ -923,13 +907,13 @@ function redrawFromOrdered() {
   routeState.ordered.forEach((p, i) => {
     const isVisited = routeState.visited.includes(p.id);
     L.marker([p.lat, p.lng], { icon: brandIcon(i + 1, true, isVisited) })
-      .bindPopup('<b>' + (i + 1) + '. ' + p.name + '</b>' + (isVisited ? ' (Visited)' : '') + '<br>' + p.type + '<br><i>' + p.hot + '</i>')
+      .bindPopup('<b>Stop ' + (i + 1) + ': ' + p.name + '</b>' + (isVisited ? ' [COMPLETED]' : '') + '<br>' + p.type + '<br><i>' + p.hot + '</i>')
       .addTo(routeState.layer);
   });
   if (routeState.ordered.length) {
     const pts = [[routeState.start.lat, routeState.start.lng],
                  ...routeState.ordered.map(p => [p.lat, p.lng])];
-    L.polyline(pts, { color: "#d50000", weight: 4, opacity: 0.85, dashArray: "1 8", lineCap: "round" }).addTo(routeState.layer);
+    L.polyline(pts, { color: "#d50000", weight: 5, opacity: 0.9, lineCap: "round" }).addTo(routeState.layer);
     routeState.map.fitBounds(L.latLngBounds(pts).pad(0.25));
   }
   renderRouteSummary();
@@ -941,8 +925,7 @@ function openInGoogleMaps() {
   if (!ord.length) return;
   const origin = routeState.start.lat + "," + routeState.start.lng;
   const dest = ord[ord.length - 1].lat + "," + ord[ord.length - 1].lng;
-  
-  // Google Maps supports up to 9 intermediate waypoints in URL
+
   let waypointsList = ord.slice(0, -1);
   if (waypointsList.length > 9) {
     alert("Notice: Google Maps allows up to 9 intermediate waypoints via link. The first 9 stops will be routed.");
@@ -987,6 +970,7 @@ function openAddProspectModal(editId = null) {
   const inputType = document.getElementById("inputProspectType");
   const selectSeg = document.getElementById("selectProspectSeg");
   const inputAddr = document.getElementById("inputProspectAddr");
+  const inputPhone = document.getElementById("inputProspectPhone");
   const inputLat = document.getElementById("inputProspectLat");
   const inputLng = document.getElementById("inputProspectLng");
   const inputHot = document.getElementById("inputProspectHot");
@@ -997,19 +981,20 @@ function openAddProspectModal(editId = null) {
   if (editId) {
     const existing = routeState.prospects.find(p => p.id === editId);
     if (existing) {
-      if (title) title.textContent = "✎ Edit Prospect";
+      if (title) title.textContent = "Edit Customer Account";
       inputId.value = existing.id;
       inputName.value = existing.name;
       inputType.value = existing.type;
       selectSeg.value = existing.seg;
       inputAddr.value = existing.addr;
+      if (inputPhone) inputPhone.value = existing.phone || "";
       inputLat.value = existing.lat;
       inputLng.value = existing.lng;
       inputHot.value = existing.hot;
       if (btnDel) {
         btnDel.style.display = "inline-block";
         btnDel.onclick = () => {
-          if (confirm('Delete "' + existing.name + '" from your territory directory?')) {
+          if (confirm('Permanently delete "' + existing.name + '" from your territory accounts?')) {
             deleteProspect(existing.id);
             closeModal("modalAddProspect");
           }
@@ -1017,7 +1002,7 @@ function openAddProspectModal(editId = null) {
       }
     }
   } else {
-    if (title) title.textContent = "➕ Add New Prospect";
+    if (title) title.textContent = "Add New Customer Account";
     inputId.value = "";
     if (btnDel) btnDel.style.display = "none";
   }
@@ -1072,6 +1057,7 @@ function initRouteModals() {
         type: $("#inputProspectType").value,
         seg: $("#selectProspectSeg").value,
         addr: $("#inputProspectAddr").value,
+        phone: ($("#inputProspectPhone") ? $("#inputProspectPhone").value : ""),
         lat: $("#inputProspectLat").value,
         lng: $("#inputProspectLng").value,
         hot: $("#inputProspectHot").value,
@@ -1107,7 +1093,7 @@ function initRouteModals() {
   const btnReset = document.getElementById("btnResetProspects");
   if (btnReset) {
     btnReset.onclick = () => {
-      if (confirm("Reset your directory to default 22 Addison County prospects? Any custom additions will be cleared.")) {
+      if (confirm("Reset your directory to default 22 territory accounts? Any custom additions will be cleared.")) {
         resetProspectsToDefault();
         closeModal("modalImportExport");
       }
@@ -1118,6 +1104,15 @@ function initRouteModals() {
   if (searchInput) {
     searchInput.oninput = (e) => {
       routeState.searchQuery = e.target.value;
+      renderProspectList();
+    };
+  }
+
+  const clearSearchBtn = document.getElementById("btnRouteSearchClear");
+  if (clearSearchBtn) {
+    clearSearchBtn.onclick = () => {
+      if (searchInput) searchInput.value = "";
+      routeState.searchQuery = "";
       renderProspectList();
     };
   }
