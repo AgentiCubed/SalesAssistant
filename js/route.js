@@ -4,11 +4,7 @@
    route for the rep: drop prospect pins, auto-optimize the
    driving order, then hand off to Google/Apple Maps for real
    turn-by-turn nav.
-
-   Boss vision: "connect it to a map, give the rep a visual of
-   their prospecting route, ideally add to a route they take on
-   a given day." Done — with a one-line swap to native Google
-   Maps JS later if Würth wants to pay for the API.
+   Includes local state persistence & visited stop tracking.
    ============================================================ */
 
 /* ---------- PROSPECT DATABASE (Addison County, VT) ----------
@@ -52,7 +48,9 @@ const ROUTE_SEGMENTS = [
   { id: "precision",  label: "Precision Mfg",  icon: "⚙️" },
 ];
 
-/* ---------- STATE ---------- */
+/* ---------- STATE & PERSISTENCE ---------- */
+const STORAGE_KEY_ROUTE = "sc_route_state_v1";
+
 const routeState = {
   map: null,
   layer: null,          // marker + line layer group
@@ -61,8 +59,53 @@ const routeState = {
   start: { lat: 44.0153, lng: -73.1672, name: "Start (Middlebury, Rte 7)" },
   ordered: [],          // route prospect objects (optimized OR manual)
   manualOrder: false,   // true once the rep drags to reorder
+  visited: [],          // prospect ids marked as completed/visited
   inited: false,
 };
+
+function saveRouteState() {
+  try {
+    const data = {
+      selected: routeState.selected,
+      orderedIds: routeState.ordered.map(p => p.id),
+      manualOrder: routeState.manualOrder,
+      visited: routeState.visited,
+      segFilter: Array.from(routeState.segFilter),
+      start: routeState.start,
+    };
+    localStorage.setItem(STORAGE_KEY_ROUTE, JSON.stringify(data));
+  } catch (e) {
+    console.warn("Could not save route state:", e);
+  }
+}
+
+function loadRouteState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_ROUTE);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (data && Array.isArray(data.selected)) {
+      routeState.selected = data.selected;
+      routeState.visited = Array.isArray(data.visited) ? data.visited : [];
+      routeState.manualOrder = !!data.manualOrder;
+      if (Array.isArray(data.segFilter)) {
+        routeState.segFilter = new Set(data.segFilter);
+      }
+      if (data.start && typeof data.start.lat === "number") {
+        routeState.start = data.start;
+      }
+      if (data.manualOrder && Array.isArray(data.orderedIds)) {
+        routeState.ordered = data.orderedIds
+          .map(id => PROSPECTS.find(p => p.id === id))
+          .filter(Boolean);
+      }
+      return true;
+    }
+  } catch (e) {
+    console.warn("Could not load route state:", e);
+  }
+  return false;
+}
 
 /* ---------- GEO HELPERS ---------- */
 function haversine(a, b) {
@@ -74,8 +117,7 @@ function haversine(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-/* Nearest-neighbor route from the start point — simple, fast,
-   reads great in a demo. Swap for OSRM/Google Directions later. */
+/* Nearest-neighbor route from the start point — simple, fast */
 function optimizeRoute(stops) {
   if (!stops.length) return [];
   const remaining = stops.slice();
@@ -98,11 +140,14 @@ function routeDistance(ordered) {
   return total;
 }
 
-/* ---------- LEAFLET ICON (fix default path to local vendor) ---------- */
-function brandIcon(n, hot) {
+/* ---------- LEAFLET ICONS ---------- */
+function brandIcon(n, hot, visited) {
+  const classes = ["route-pin"];
+  if (hot) classes.push("hot");
+  if (visited) classes.push("visited");
   return L.divIcon({
-    className: "route-pin" + (hot ? " hot" : ""),
-    html: `<div class="route-pin-inner">${n}</div>`,
+    className: classes.join(" "),
+    html: '<div class="route-pin-inner">' + (visited ? '✓' : n) + '</div>',
     iconSize: [30, 30],
     iconAnchor: [15, 15],
   });
@@ -110,7 +155,7 @@ function brandIcon(n, hot) {
 function startIcon() {
   return L.divIcon({
     className: "route-pin start",
-    html: `<div class="route-pin-inner">★</div>`,
+    html: '<div class="route-pin-inner">★</div>',
     iconSize: [34, 34],
     iconAnchor: [17, 17],
   });
@@ -124,15 +169,21 @@ function renderRouteSegments() {
   const all = document.createElement("button");
   all.className = "chip" + (routeState.segFilter.size === 0 ? " selected" : "");
   all.innerHTML = "<span>📍</span>All";
-  all.onclick = () => { routeState.segFilter.clear(); renderRouteSegments(); renderProspectList(); };
+  all.onclick = () => {
+    routeState.segFilter.clear();
+    saveRouteState();
+    renderRouteSegments();
+    renderProspectList();
+  };
   wrap.appendChild(all);
   ROUTE_SEGMENTS.forEach(s => {
     const chip = document.createElement("button");
     chip.className = "chip" + (routeState.segFilter.has(s.id) ? " selected" : "");
-    chip.innerHTML = `<span>${s.icon}</span>${s.label}`;
+    chip.innerHTML = "<span>" + s.icon + "</span>" + s.label;
     chip.onclick = () => {
       if (routeState.segFilter.has(s.id)) routeState.segFilter.delete(s.id);
       else routeState.segFilter.add(s.id);
+      saveRouteState();
       renderRouteSegments();
       renderProspectList();
     };
@@ -151,22 +202,33 @@ function renderProspectList() {
   const list = visibleProspects();
   out.innerHTML = list.map(p => {
     const on = routeState.selected.includes(p.id);
-    return `
-      <button class="prospect-card${on ? " added" : ""}" data-pid="${p.id}">
-        <span class="prospect-check">${on ? "✓" : "+"}</span>
-        <span class="prospect-main">
-          <span class="prospect-name">${p.name}</span>
-          <span class="prospect-meta">${p.type} · ${p.addr}</span>
-          <span class="prospect-hot">🔥 ${p.hot}</span>
-        </span>
-      </button>`;
+    const isDone = routeState.visited.includes(p.id);
+    const cardClasses = "prospect-card" + (on ? " added" : "") + (isDone ? " visited" : "");
+    const checkText = isDone ? "✓" : (on ? "✓" : "+");
+    const badgeHtml = isDone ? ' <span class="done-badge">Visited</span>' : '';
+    return (
+      '<button class="' + cardClasses + '" data-pid="' + p.id + '">' +
+        '<span class="prospect-check">' + checkText + '</span>' +
+        '<span class="prospect-main">' +
+          '<span class="prospect-name">' + p.name + badgeHtml + '</span>' +
+          '<span class="prospect-meta">' + p.type + ' · ' + p.addr + '</span>' +
+          '<span class="prospect-hot">🔥 ' + p.hot + '</span>' +
+        '</span>' +
+      '</button>'
+    );
   }).join("");
   $$("#prospectList .prospect-card").forEach(b => {
     b.onclick = () => {
       const id = b.dataset.pid;
       const i = routeState.selected.indexOf(id);
-      if (i >= 0) routeState.selected.splice(i, 1);
-      else routeState.selected.push(id);
+      if (i >= 0) {
+        routeState.selected.splice(i, 1);
+        const vi = routeState.visited.indexOf(id);
+        if (vi >= 0) routeState.visited.splice(vi, 1);
+      } else {
+        routeState.selected.push(id);
+      }
+      saveRouteState();
       renderProspectList();
       rebuildRoute();
     };
@@ -186,19 +248,16 @@ function ensureMap() {
   if (mapEl) mapEl.classList.add("map-loading");
   routeState.map = L.map("routeMap", { zoomControl: true, attributionControl: true })
     .setView([44.06, -73.18], 11);
-  // CARTO basemap — clean, minimal (free, no API key). Light/dark aware.
-  // Makes the Würth-red route + pins read like a showroom floor plan.
   routeState.tiles = L.tileLayer(tileUrl(), {
     maxZoom: 20, subdomains: "abcd",
     attribution: '&copy; OpenStreetMap &copy; CARTO',
   }).addTo(routeState.map);
-  // clear the shimmer once tiles paint (or after a safety timeout)
   routeState.tiles.on("load", () => { if (mapEl) mapEl.classList.remove("map-loading"); });
   setTimeout(() => { if (mapEl) mapEl.classList.remove("map-loading"); }, 2500);
   routeState.layer = L.layerGroup().addTo(routeState.map);
 }
 
-/* Swap basemap when theme changes (called from app.js theme toggle) */
+/* Swap basemap when theme changes */
 function refreshMapTheme() {
   if (!routeState.map || !routeState.tiles) return;
   routeState.tiles.setUrl(tileUrl());
@@ -210,7 +269,6 @@ function rebuildRoute() {
 
   const chosen = PROSPECTS.filter(p => routeState.selected.includes(p.id));
   if (routeState.manualOrder) {
-    // keep the rep's hand-set order; append any newly added stops at the end
     const prevIds = routeState.ordered.map(p => p.id).filter(id => routeState.selected.includes(id));
     const newIds = routeState.selected.filter(id => !prevIds.includes(id));
     routeState.ordered = [...prevIds, ...newIds].map(id => PROSPECTS.find(p => p.id === id));
@@ -220,17 +278,18 @@ function rebuildRoute() {
 
   // start pin
   L.marker([routeState.start.lat, routeState.start.lng], { icon: startIcon() })
-    .bindPopup(`<b>${routeState.start.name}</b>`)
+    .bindPopup('<b>' + routeState.start.name + '</b>')
     .addTo(routeState.layer);
 
   // ordered prospect pins
   routeState.ordered.forEach((p, i) => {
-    L.marker([p.lat, p.lng], { icon: brandIcon(i + 1, true) })
-      .bindPopup(`<b>${i + 1}. ${p.name}</b><br>${p.type}<br><i>${p.hot}</i>`)
+    const isVisited = routeState.visited.includes(p.id);
+    L.marker([p.lat, p.lng], { icon: brandIcon(i + 1, true, isVisited) })
+      .bindPopup('<b>' + (i + 1) + '. ' + p.name + '</b>' + (isVisited ? ' (Visited)' : '') + '<br>' + p.type + '<br><i>' + p.hot + '</i>')
       .addTo(routeState.layer);
   });
 
-  // route polyline (start -> stops in order)
+  // route polyline
   if (routeState.ordered.length) {
     const pts = [[routeState.start.lat, routeState.start.lng],
                  ...routeState.ordered.map(p => [p.lat, p.lng])];
@@ -238,7 +297,21 @@ function rebuildRoute() {
     routeState.map.fitBounds(L.latLngBounds(pts).pad(0.25));
   }
 
+  saveRouteState();
   renderRouteSummary();
+}
+
+/* ---------- TOGGLE VISITED STATUS ---------- */
+function toggleStopVisited(id) {
+  const idx = routeState.visited.indexOf(id);
+  if (idx >= 0) {
+    routeState.visited.splice(idx, 1);
+  } else {
+    routeState.visited.push(id);
+  }
+  saveRouteState();
+  renderProspectList();
+  redrawFromOrdered();
 }
 
 /* ---------- RENDER: SUMMARY + STOP LIST + HANDOFF ---------- */
@@ -247,49 +320,99 @@ function renderRouteSummary() {
   if (!out) return;
   const ord = routeState.ordered;
   if (!ord.length) {
-    out.innerHTML = `<div class="empty">Pick prospects above to build your route. I'll order them for the shortest drive and drop them on the map.</div>`;
+    out.innerHTML = '<div class="empty">Pick prospects above to build your route. I\\'ll order them for the shortest drive and drop them on the map.</div>';
     setCoach("Stack your day: tap the shops you're hitting, I'll plan the drive.");
     return;
   }
   const miles = routeDistance(ord).toFixed(1);
-  const driveMin = Math.round((routeDistance(ord) / 35) * 60); // ~35mph rural avg
-  const stops = ord.map((p, i) =>
-    `<li class="stop-row" draggable="true" data-idx="${i}">
-       <span class="stop-grip" aria-hidden="true">☰</span>
-       <span class="stop-num">${i + 1}</span>
-       <span class="stop-body"><b>${p.name}</b><span class="stop-sub">${p.type} · ${p.addr}</span></span>
-     </li>`).join("");
+  const driveMin = Math.round((routeDistance(ord) / 35) * 60);
+  const visitedCount = ord.filter(p => routeState.visited.includes(p.id)).length;
+
+  const stops = ord.map((p, i) => {
+    const isDone = routeState.visited.includes(p.id);
+    const rowClass = "stop-row" + (isDone ? " is-visited" : "");
+    const numClass = "stop-num" + (isDone ? " visited" : "");
+    const numContent = isDone ? "✓" : String(i + 1);
+    const badgeHtml = isDone ? ' <span class="done-badge">Visited</span>' : '';
+    const checkContent = isDone ? "✓" : "";
+    return (
+      '<li class="' + rowClass + '" draggable="true" data-idx="' + i + '" data-pid="' + p.id + '">' +
+        '<button class="stop-check-btn" data-pid="' + p.id + '" title="Toggle completed" aria-label="Mark ' + p.name + ' as visited">' +
+          '<span class="check-circle">' + checkContent + '</span>' +
+        '</button>' +
+        '<span class="stop-grip" aria-hidden="true">☰</span>' +
+        '<span class="' + numClass + '">' + numContent + '</span>' +
+        '<span class="stop-body">' +
+          '<b>' + p.name + badgeHtml + '</b>' +
+          '<span class="stop-sub">' + p.type + ' · ' + p.addr + '</span>' +
+        '</span>' +
+      '</li>'
+    );
+  }).join("");
 
   const manual = routeState.manualOrder;
-  out.innerHTML = `
-    <div class="route-stat-row">
-      <div class="route-stat"><span class="rs-num">${ord.length}</span><span class="rs-lab">stops</span></div>
-      <div class="route-stat"><span class="rs-num">${miles}</span><span class="rs-lab">miles</span></div>
-      <div class="route-stat"><span class="rs-num">${driveMin}</span><span class="rs-lab">min drive</span></div>
-    </div>
-    <div class="stop-head">
-      <span class="stop-head-label">${manual ? "Custom order" : "Optimized order"}</span>
-      ${manual ? `<button id="btnReopt" class="chip-mini">⚡ Re-optimize</button>` : `<span class="stop-head-hint">drag ☰ to reorder</span>`}
-    </div>
-    <ol class="stop-list" id="stopList">${stops}</ol>
-    <div class="route-actions">
-      <button id="btnGoogle" class="btn-route gmaps">🗺️ Open in Google Maps</button>
-      <button id="btnApple" class="btn-route amaps">🍎 Open in Apple Maps</button>
-      <button id="btnClearRoute" class="btn-ghost">Clear route</button>
-    </div>
-    <p class="route-foot">Plan in-app → hand the optimized route to your phone's nav for live turn-by-turn. Add these stops to wherever you're already driving today.</p>
-  `;
+  const orderLabel = manual ? "Custom order" : "Optimized order";
+  const orderActionHtml = manual
+    ? '<button id="btnReopt" class="chip-mini">⚡ Re-optimize</button>'
+    : '<span class="stop-head-hint">drag ☰ to reorder · tap ○ to check off</span>';
+
+  out.innerHTML = (
+    '<div class="route-stat-row">' +
+      '<div class="route-stat"><span class="rs-num">' + visitedCount + '/' + ord.length + '</span><span class="rs-lab">completed</span></div>' +
+      '<div class="route-stat"><span class="rs-num">' + miles + '</span><span class="rs-lab">miles</span></div>' +
+      '<div class="route-stat"><span class="rs-num">' + driveMin + '</span><span class="rs-lab">min drive</span></div>' +
+    '</div>' +
+    '<div class="stop-head">' +
+      '<span class="stop-head-label">' + orderLabel + '</span>' +
+      orderActionHtml +
+    '</div>' +
+    '<ol class="stop-list" id="stopList">' + stops + '</ol>' +
+    '<div class="route-actions">' +
+      '<button id="btnGoogle" class="btn-route gmaps">🗺️ Open in Google Maps</button>' +
+      '<button id="btnApple" class="btn-route amaps">🍎 Open in Apple Maps</button>' +
+      '<button id="btnClearRoute" class="btn-ghost">Clear route</button>' +
+    '</div>' +
+    '<p class="route-foot">Plan in-app → hand the optimized route to your phone\\'s nav for live turn-by-turn. Add these stops to wherever you\\'re already driving today.</p>'
+  );
 
   $("#btnGoogle").onclick = openInGoogleMaps;
   $("#btnApple").onclick = openInAppleMaps;
-  $("#btnClearRoute").onclick = () => { routeState.selected = []; routeState.manualOrder = false; renderProspectList(); rebuildRoute(); };
+  $("#btnClearRoute").onclick = () => {
+    routeState.selected = [];
+    routeState.ordered = [];
+    routeState.visited = [];
+    routeState.manualOrder = false;
+    saveRouteState();
+    renderProspectList();
+    rebuildRoute();
+  };
   const reopt = $("#btnReopt");
-  if (reopt) reopt.onclick = () => { routeState.manualOrder = false; rebuildRoute(); setCoach("Snapped back to the shortest drive. ⚡"); };
+  if (reopt) {
+    reopt.onclick = () => {
+      routeState.manualOrder = false;
+      rebuildRoute();
+      saveRouteState();
+      setCoach("Snapped back to the shortest drive. ⚡");
+    };
+  }
+
+  $$("#stopList .stop-check-btn").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const pid = btn.dataset.pid;
+      toggleStopVisited(pid);
+    };
+  });
+
   wireStopDrag();
 
-  setCoach(manual
-    ? `Your call — ${ord.length} stops, ${miles} mi in your order. Hit "Open in Google Maps" and roll.`
-    : `Route locked: ${ord.length} stops, ${miles} mi. Hit "Open in Google Maps" and roll.`);
+  if (visitedCount === ord.length && ord.length > 0) {
+    setCoach('All ' + ord.length + ' stops logged today. Great drive — lock down the follow-ups.');
+  } else {
+    setCoach(manual
+      ? 'Your call — ' + visitedCount + '/' + ord.length + ' stops done (' + miles + ' mi in your order). Hit "Open in Google Maps" and roll.'
+      : 'Route locked: ' + visitedCount + '/' + ord.length + ' stops done (' + miles + ' mi). Hit "Open in Google Maps" and roll.');
+  }
 }
 
 /* ---------- DRAG-TO-REORDER STOPS ---------- */
@@ -327,27 +450,28 @@ function wireStopDrag() {
       const below = (e.clientY - rect.top) > rect.height / 2;
       const arr = routeState.ordered.slice();
       const [moved] = arr.splice(from, 1);
-      // adjust target index after removal
       if (from < to) to -= 1;
       if (below) to += 1;
       to = Math.max(0, Math.min(arr.length, to));
       arr.splice(to, 0, moved);
       routeState.ordered = arr;
       routeState.manualOrder = true;
+      saveRouteState();
       redrawFromOrdered();
     });
   });
 }
 
-/* Redraw map + summary from the current ordered[] without re-optimizing */
+/* Redraw map + summary from the current ordered[] */
 function redrawFromOrdered() {
   ensureMap();
   routeState.layer.clearLayers();
   L.marker([routeState.start.lat, routeState.start.lng], { icon: startIcon() })
-    .bindPopup(`<b>${routeState.start.name}</b>`).addTo(routeState.layer);
+    .bindPopup('<b>' + routeState.start.name + '</b>').addTo(routeState.layer);
   routeState.ordered.forEach((p, i) => {
-    L.marker([p.lat, p.lng], { icon: brandIcon(i + 1, true) })
-      .bindPopup(`<b>${i + 1}. ${p.name}</b><br>${p.type}<br><i>${p.hot}</i>`)
+    const isVisited = routeState.visited.includes(p.id);
+    L.marker([p.lat, p.lng], { icon: brandIcon(i + 1, true, isVisited) })
+      .bindPopup('<b>' + (i + 1) + '. ' + p.name + '</b>' + (isVisited ? ' (Visited)' : '') + '<br>' + p.type + '<br><i>' + p.hot + '</i>')
       .addTo(routeState.layer);
   });
   if (routeState.ordered.length) {
@@ -359,40 +483,41 @@ function redrawFromOrdered() {
   renderRouteSummary();
 }
 
-/* ---------- MAPS HAND-OFF (the slick part for the boss) ----------
-   Builds a real Google/Apple Maps directions URL with the
-   optimized waypoint order. This is what turns an in-app plan
-   into live turn-by-turn on the rep's actual phone.          */
+/* ---------- MAPS HAND-OFF ---------- */
 function openInGoogleMaps() {
   const ord = routeState.ordered;
   if (!ord.length) return;
-  const origin = `${routeState.start.lat},${routeState.start.lng}`;
-  const dest = `${ord[ord.length - 1].lat},${ord[ord.length - 1].lng}`;
-  const waypoints = ord.slice(0, -1).map(p => `${p.lat},${p.lng}`).join("|");
-  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=driving`;
-  if (waypoints) url += `&waypoints=${encodeURIComponent(waypoints)}`;
+  const origin = routeState.start.lat + ',' + routeState.start.lng;
+  const dest = ord[ord.length - 1].lat + ',' + ord[ord.length - 1].lng;
+  const waypoints = ord.slice(0, -1).map(p => p.lat + ',' + p.lng).join("|");
+  let url = 'https://www.google.com/maps/dir/?api=1&origin=' + origin + '&destination=' + dest + '&travelmode=driving';
+  if (waypoints) url += '&waypoints=' + encodeURIComponent(waypoints);
   window.open(url, "_blank");
 }
 function openInAppleMaps() {
   const ord = routeState.ordered;
   if (!ord.length) return;
-  // Apple Maps doesn't take multi-waypoints via URL reliably; route
-  // start -> first stop, then the in-app list carries the rest.
-  const saddr = `${routeState.start.lat},${routeState.start.lng}`;
-  const daddr = ord.map(p => `${p.lat},${p.lng}`).join(" to: ");
-  window.open(`https://maps.apple.com/?saddr=${saddr}&daddr=${daddr}&dirflg=d`, "_blank");
+  const saddr = routeState.start.lat + ',' + routeState.start.lng;
+  const daddr = ord.map(p => p.lat + ',' + p.lng).join(" to: ");
+  window.open('https://maps.apple.com/?saddr=' + saddr + '&daddr=' + daddr + '&dirflg=d', "_blank");
 }
 
 /* ---------- INIT (lazy — only when the view is opened) ---------- */
 function initRoute() {
   if (routeState.inited) { setTimeout(() => routeState.map && routeState.map.invalidateSize(), 60); return; }
   routeState.inited = true;
+
+  const hasSaved = loadRouteState();
+  if (!hasSaved) {
+    // Default seed for first-time user
+    routeState.selected = ["p1", "p9", "p5", "p6"];
+    routeState.visited = [];
+    routeState.manualOrder = false;
+  }
+
   renderRouteSegments();
   renderProspectList();
   ensureMap();
-  // seed a sample day so the demo lights up immediately
-  routeState.selected = ["p1", "p9", "p5", "p6"];
-  renderProspectList();
   rebuildRoute();
   setTimeout(() => routeState.map && routeState.map.invalidateSize(), 80);
 }

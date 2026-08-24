@@ -64,7 +64,7 @@ function renderHero() {
   const counts = {
     hsProducts: (typeof CATALOG !== "undefined" ? CATALOG.length : 103),
     hsCards: (typeof BATTLE_CARDS !== "undefined" ? BATTLE_CARDS.length : 3),
-    hsRoute: (typeof PROSPECTS !== "undefined" ? PROSPECTS.length : 12),
+    hsRoute: (typeof PROSPECTS !== "undefined" ? PROSPECTS.length : 22),
   };
   Object.entries(counts).forEach(([id, target]) => countUp($("#" + id), target));
 }
@@ -333,14 +333,43 @@ function renderObjections(filter = "") {
   `).join("");
 }
 
-/* ---------- PRECALL ---------- */
+/* ---------- PRECALL (with persistence) ---------- */
+const STORAGE_KEY_PRECALL = "sc_precall_checked_v1";
+
+function getPrecallState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_PRECALL);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function savePrecallState(indices) {
+  try {
+    localStorage.setItem(STORAGE_KEY_PRECALL, JSON.stringify(indices));
+  } catch (e) {}
+}
+
 function renderPrecall() {
   const out = $("#precallOut");
   out.innerHTML = "";
-  PRECALL.forEach(item => {
+  const checkedIndices = getPrecallState();
+  PRECALL.forEach((item, idx) => {
     const li = document.createElement("li");
+    const isChecked = checkedIndices.includes(idx);
+    if (isChecked) li.classList.add("checked");
     li.innerHTML = `<span>${item}</span>`;
-    li.onclick = () => li.classList.toggle("checked");
+    li.onclick = () => {
+      li.classList.toggle("checked");
+      const currentChecked = $$("#precallOut li")
+        .map((el, i) => el.classList.contains("checked") ? i : null)
+        .filter(x => x !== null);
+      savePrecallState(currentChecked);
+      if (currentChecked.length === PRECALL.length) {
+        setCoach("Pre-call lock complete. You're ready to walk in with confidence.");
+      }
+    };
     out.appendChild(li);
   });
 }
@@ -365,6 +394,7 @@ function init() {
   $("#objSearch").addEventListener("input", (e) => renderObjections(e.target.value));
   $("#precallReset").addEventListener("click", () => {
     $$("#precallOut li").forEach(li => li.classList.remove("checked"));
+    savePrecallState([]);
     setCoach(pick(COACH_LINES.encouragement));
   });
 }
