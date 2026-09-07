@@ -1,42 +1,76 @@
-/* Sales Coach — offline service worker */
-const CACHE = "sales-coach-v18";
-const ASSETS = [
+/* ============================================================
+   SALES ASSISTANT — NETWORK-FIRST SERVICE WORKER (v30)
+   Always fetches fresh content when online, falls back to cache offline.
+   ============================================================ */
+
+const CACHE_NAME = "sales-assistant-v30";
+
+const PRECACHE_URLS = [
+  "./",
   "index.html",
-  "css/styles.css",
-  "js/data.js",
-  "js/battlecards.js",
-  "js/catalog.js",
-  "js/route.js",
-  "js/app.js",
+  "css/styles.css?v=30",
+  "js/data.js?v=30",
+  "js/battlecards.js?v=30",
+  "js/catalog.js?v=30",
+  "js/route.js?v=30",
+  "js/app.js?v=30",
   "vendor/leaflet/leaflet.css",
   "vendor/leaflet/leaflet.js",
-  "vendor/leaflet/images/marker-icon.png",
-  "vendor/leaflet/images/marker-icon-2x.png",
-  "vendor/leaflet/images/marker-shadow.png",
   "manifest.webmanifest",
-  "icons/icon-180.png",
-  "icons/icon-192.png",
-  "icons/icon-512.png",
 ];
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
-});
-
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
+// Install: precache and skip waiting immediately
+self.addEventListener("install", (event) => {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(PRECACHE_URLS).catch((err) => {
+        console.warn("Precache failed partially:", err);
+      });
+    })
   );
 });
 
-self.addEventListener("fetch", (e) => {
-  if (e.request.method !== "GET") return;
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
-      const copy = res.clone();
-      caches.open(CACHE).then(c => c.put(e.request, copy)).catch(()=>{});
-      return res;
-    }).catch(() => cached))
+// Activate: purge ALL old caches and claim clients immediately
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log("Purging old cache:", key);
+            return caches.delete(key);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
+});
+
+// Fetch: Network-First with Cache Fallback
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+
+  event.respondWith(
+    fetch(event.request)
+      .then((networkResponse) => {
+        // If valid response, clone and update cache
+        if (networkResponse && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone).catch(() => {});
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        // Offline or network error: return cached version
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) return cachedResponse;
+          if (event.request.mode === "navigate") {
+            return caches.match("index.html");
+          }
+        });
+      })
   );
 });
