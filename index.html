@@ -3,371 +3,504 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
-  <title>Sales Coach - Territory Field Cockpit</title>
-  <meta name="description" content="Field sales territory planning, battle cards, product catalog, and routing cockpit." />
+  <title>Sales Assistant - Daily Route &amp; Product Guide</title>
+  <meta name="description" content="Simple, large-print daily driving route, customer notes, product demonstrations, and catalog handbook for field sales reps." />
 
   <!-- PWA manifest & mobile app meta -->
-  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="manifest" href="manifest.webmanifest?v=30" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Sales Coach" />
-  <meta name="theme-color" content="#111827" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Sales Assistant" />
+  <meta name="theme-color" content="#ffffff" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
 
-  <!-- High legibility typography -->
+  <!-- High Legibility Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" />
 
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css" onerror="this.onerror=null;this.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';" />
-  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/styles.css?v=30" />
 </head>
 <body>
-  <!-- ===== TOP STATUS BANNER (WITH UNDO) ===== -->
+
+  <!-- STATUS TOAST BANNER -->
   <div id="statusToast" class="status-toast" role="alert">
     <span id="statusToastMsg" class="status-toast-msg">Action completed</span>
     <button id="statusToastUndo" class="status-toast-undo" style="display:none;">Undo Action</button>
   </div>
 
-  <!-- ===== HEADER ===== -->
+  <!-- APP HEADER -->
   <header class="app-header">
-    <div class="header-top-row">
-      <div class="brand">
-        <span class="brand-badge">SALES COACH</span>
-        <span class="brand-title">Territory Field Cockpit</span>
+    <div class="header-inner">
+      <div class="brand-block">
+        <h1 class="brand-title">SALES ASSISTANT</h1>
+        <p class="brand-subtitle">Daily Route &amp; Field Product Guide</p>
       </div>
-      <button id="themeToggle" class="theme-toggle-btn" aria-label="Toggle high contrast display mode">
-        <span id="themeToggleLabel">Switch to Dark Mode</span>
-      </button>
+      <div class="header-controls">
+        <button id="btnForceUpdate" class="btn-header" title="Clear cache and force update to latest version">
+          Check for Updates
+        </button>
+        <button id="btnPrintRouteHeader" class="btn-header" onclick="window.print()" title="Print physical clipboard copy">
+          Print Route Sheet
+        </button>
+      </div>
     </div>
   </header>
 
-  <!-- ===== PERSISTENT BACK NAVIGATION BAR ===== -->
+  <!-- PERSISTENT BACK NAVIGATION BAR -->
   <nav id="persistentBackBar" class="persistent-back-bar" style="display:none;">
-    <button class="btn-back-menu" data-go="home">&larr; Back to Main Menu</button>
+    <button class="btn-back-main" data-go="home">&larr; Back to Main Menu</button>
   </nav>
 
-  <!-- ===== COACH BAR ===== -->
-  <div id="coachBar" class="coach-bar">
-    <span class="coach-tag">[FIELD ADVICE]</span>
-    <span id="coachLine" class="coach-line">Ready for today's sales route.</span>
-  </div>
+  <!-- MAIN WRAPPER -->
+  <main class="app-main">
 
-  <!-- ===== MAIN CONTENT VIEWS ===== -->
-  <main id="app">
-
-    <!-- HOME (TABLE OF CONTENTS) -->
+    <!-- ==================== VIEW: HOME (GRANDPAD / 3 GIANT BUTTONS) ==================== -->
     <section id="view-home" class="view active">
-      <div class="hero-card">
-        <div class="hero-top">
-          <span class="hero-division">FIELD SALES &middot; MRO DISTRIBUTION</span>
-          <span class="hero-date" id="heroDate"></span>
-        </div>
-        <h1 class="hero-title" id="heroGreeting">Good morning. Ready for today's sales route.</h1>
-        <p class="hero-sub" id="heroSub">Your daily territory cockpit. Select a section from the table of contents below.</p>
-        
-        <div class="hero-quick-stats">
-          <div class="stat-cell"><span class="sc-num" id="hsRoute">22</span><span class="sc-label">Accounts Loaded</span></div>
-          <div class="stat-cell"><span class="sc-num" id="hsCards">7</span><span class="sc-label">Demo Battle Cards</span></div>
-          <div class="stat-cell"><span class="sc-num" id="hsProducts">103</span><span class="sc-label">Catalog Products</span></div>
-        </div>
-      </div>
+      <div class="home-stack">
 
-      <div class="menu-heading-row">
-        <h2 class="section-title">Table of Contents</h2>
-        <span class="section-hint">Select any item below to open:</span>
-      </div>
-      <div id="tocMenu" class="toc-menu-list"></div>
-    </section>
-
-    <!-- PROSPECTING ROUTE -->
-    <section id="view-route" class="view">
-      <div class="view-header-row">
-        <h2 class="view-title">1. Today's Driving Route &amp; Map</h2>
-        <p class="view-lead">Plan customer stops, view the driving map, and start turn-by-turn navigation in Google Maps or Apple Maps.</p>
-      </div>
-
-      <div class="route-toolbar-box">
-        <div class="toolbar-info-row">
-          <span class="tb-label">CURRENT STARTING POINT:</span>
-          <span id="routeStartDisplay" class="tb-value">Middlebury, VT (Route 7 Hub)</span>
+        <div class="welcome-box">
+          <h2 class="welcome-title">Daily Sales Handbook</h2>
+          <p class="welcome-desc">Tap one of the three large options below to get driving directions, look up how to demo products to shop owners, or find part numbers.</p>
         </div>
-        <div class="toolbar-btn-row">
-          <button id="btnOpenStartModal" class="btn-tb primary">Change Starting Point / Use GPS</button>
-          <button id="btnOpenAddProspect" class="btn-tb">Add New Customer</button>
-          <button id="btnOpenImportExport" class="btn-tb">Import / Export Data</button>
-        </div>
-      </div>
 
-      <div id="routeSegments" class="chip-grid"></div>
-      <div id="routeMap" class="route-map"></div>
-      <div id="routeSummary" class="route-summary"></div>
+        <!-- 3 GIANT CARDS -->
+        <div class="giant-menu-grid">
 
-      <div class="directory-section-header">
-        <div class="dsh-left">
-          <h3 class="directory-heading">Customer Account Directory (<span id="prospectCount">22</span>)</h3>
-          <span class="dsh-hint">Check off accounts to include them in today's driving route:</span>
+          <!-- OPTION 1: DRIVING LIST -->
+          <div class="giant-card" data-go="route">
+            <span class="giant-card-pill">OPTION 1</span>
+            <h3 class="giant-card-heading">TODAY'S DRIVING LIST &amp; MAP</h3>
+            <p class="giant-card-text">View your customer stops in order from closest to farthest, call shops with one tap, take notes, and launch driving directions in your truck.</p>
+            <div class="giant-card-footer">
+              <span class="btn-giant-cta">Open Today's Driving List &rarr;</span>
+            </div>
+          </div>
+
+          <!-- OPTION 2: PRODUCT DEMOS -->
+          <div class="giant-card" data-go="battlecards">
+            <span class="giant-card-pill">OPTION 2</span>
+            <h3 class="giant-card-heading">PRODUCT DEMOS &amp; SALES SCRIPTS</h3>
+            <p class="giant-card-text">Step-by-step physical tests that prove our sprays, greases, and sealants work on the shop floor, plus comebacks for when a customer says no.</p>
+            <div class="giant-card-footer">
+              <span class="btn-giant-cta">Open Product Demos &rarr;</span>
+            </div>
+          </div>
+
+          <!-- OPTION 3: PRODUCT CATALOG -->
+          <div class="giant-card" data-go="catalog">
+            <span class="giant-card-pill">OPTION 3</span>
+            <h3 class="giant-card-heading">PRODUCT CATALOG &amp; PART NUMBERS</h3>
+            <p class="giant-card-text">Search 103 brake cleaners, penetrating oils, impact greases, gasket makers, and shop supplies with exact item numbers and can sizes.</p>
+            <div class="giant-card-footer">
+              <span class="btn-giant-cta">Open Product Catalog &rarr;</span>
+            </div>
+          </div>
+
         </div>
-        <div class="search-wrap">
-          <label class="input-persistent-label" for="routeSearch">SEARCH CUSTOMER DIRECTORY:</label>
-          <div class="search-input-group">
-            <input id="routeSearch" class="search-input" type="search" placeholder="Type company name, address, or product note..." />
-            <button id="btnRouteSearchClear" class="btn-search-clear" type="button">Clear</button>
+
+        <!-- SECONDARY DIRECTORY OF TOOLS -->
+        <div class="secondary-tools-container">
+          <h4 class="sec-heading">Additional Sales Reference Tools</h4>
+          <div class="sec-tools-list">
+            <button class="btn-sec-tool" data-go="precall">
+              <span class="sec-name">Quick 30-Second Pre-Call Checklist</span>
+              <span class="sec-hint">What to review in your truck before walking in the customer door</span>
+            </button>
+            <button class="btn-sec-tool" data-go="objections">
+              <span class="sec-name">Objection Handling Comebacks</span>
+              <span class="sec-hint">Answers for "Happy with current vendor", "Too expensive", and brush-offs</span>
+            </button>
+            <button class="btn-sec-tool" data-go="gameplan">
+              <span class="sec-name">Customer Guide by Shop Type</span>
+              <span class="sec-hint">Targeted product recommendations for auto repair, body shops, fleets, and farms</span>
+            </button>
+            <button class="btn-sec-tool" data-go="anglefinder">
+              <span class="sec-name">New Customer Ideas by Industry</span>
+              <span class="sec-hint">Finding chemical and maintenance accounts in hospitals, schools, and breweries</span>
+            </button>
           </div>
         </div>
+
       </div>
-      <div id="prospectList" class="prospect-list"></div>
     </section>
 
-    <!-- BATTLE CARDS -->
+    <!-- ==================== VIEW: ROUTE PLANNER ==================== -->
+    <section id="view-route" class="view">
+      <div class="view-content">
+
+        <div class="view-header-bar">
+          <div>
+            <h2 class="view-title">Today's Driving Route</h2>
+            <p class="view-subtitle">Stops are ordered automatically for the shortest drive. Use the Up and Down buttons to change your stop order.</p>
+          </div>
+          <div class="view-top-btns">
+            <button id="btnOpenAddProspect" class="btn-action-primary">+ Add Customer Stop</button>
+            <button id="btnOpenImportExport" class="btn-action-secondary">Import / Export (Excel)</button>
+          </div>
+        </div>
+
+        <!-- STARTING POINT CARD -->
+        <div class="start-point-box">
+          <div>
+            <span class="label-bold">STARTING POINT:</span>
+            <div id="routeStartDisplay" class="start-point-val">Middlebury Hub (Foster Motors)</div>
+          </div>
+          <button id="btnOpenStartModal" class="btn-action-outline">Change Start / Use GPS</button>
+        </div>
+
+        <!-- ROUTE MAP -->
+        <div class="map-border-box">
+          <div id="routeMap" style="height: 320px; width: 100%;"></div>
+        </div>
+
+        <!-- CLIPBOARD RUN SHEET -->
+        <div class="run-sheet-card">
+          <div class="run-sheet-top">
+            <h3 class="run-sheet-heading">DAILY CLIPBOARD RUN SHEET</h3>
+            <div class="run-sheet-btn-row">
+              <button id="btnExportLog" class="btn-action-secondary" onclick="exportDailyActivityLog()">Export Mileage Log (CSV)</button>
+              <button id="btnPrintRunSheet" class="btn-action-secondary" onclick="window.print()">Print Paper Copy</button>
+            </div>
+          </div>
+
+          <!-- MULTI-STOP NAVIGATION BUTTONS -->
+          <div class="nav-cluster-box">
+            <span class="label-bold">LAUNCH ENTIRE DAY'S ROUTE:</span>
+            <div class="nav-cluster-btns">
+              <button id="btnLaunchGoogle" class="btn-large-nav" onclick="openInGoogleMaps()">Start Route in Google Maps</button>
+              <button id="btnLaunchApple" class="btn-large-nav" onclick="openInAppleMaps()">Start Route in Apple Maps</button>
+            </div>
+          </div>
+
+          <!-- ORDERED STOP LIST -->
+          <ol id="routeSummary" class="ordered-stops-list">
+            <!-- Populated dynamically by route.js -->
+          </ol>
+
+          <!-- PROSPECT DIRECTORY SEARCH -->
+          <div class="directory-wrap">
+            <div class="dir-header">
+              <h3 class="dir-title">Customer Accounts in Territory (<span id="prospectCount">22</span>)</h3>
+              <p class="dir-sub">Check or uncheck shops to add or remove them from today's route.</p>
+            </div>
+
+            <div class="search-box-row">
+              <label for="routeSearch" class="label-bold">SEARCH CUSTOMER DIRECTORY:</label>
+              <div class="input-with-clear">
+                <input type="text" id="routeSearch" class="input-field-large" placeholder="Search business name, address, town..." />
+                <button id="btnClearRouteSearch" class="btn-clear-large" onclick="document.getElementById('routeSearch').value=''; if(typeof renderProspectList==='function') renderProspectList();">Clear</button>
+              </div>
+            </div>
+
+            <div id="routeSegments" class="filter-chips-row">
+              <!-- Rendered dynamically -->
+            </div>
+
+            <div id="prospectList" class="prospects-directory-stack">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== VIEW: PRODUCT DEMOS & BATTLE CARDS ==================== -->
     <section id="view-battlecards" class="view">
-      <div class="view-header-row">
-        <h2 class="view-title">2. Product Battle Cards &amp; Hands-On Demos</h2>
-        <p class="view-lead">High-margin consumable problem solvers with step-by-step physical demonstration scripts.</p>
+      <div class="view-content">
+        <div class="view-header-bar">
+          <div>
+            <h2 class="view-title">Product Demos &amp; Sales Scripts</h2>
+            <p class="view-subtitle">Physical demonstration tests you can perform right on the shop floor to prove our products work better.</p>
+          </div>
+        </div>
+
+        <div id="bcList" class="battlecards-stack">
+          <!-- Rendered dynamically by app.js -->
+        </div>
       </div>
-      <div id="bcList" class="bc-list"></div>
-      <div id="bcDetail" class="bc-detail"></div>
     </section>
 
-    <!-- PRODUCT FINDER / CATALOG -->
+    <!-- ==================== VIEW: PRODUCT CATALOG ==================== -->
     <section id="view-catalog" class="view">
-      <div class="view-header-row">
-        <h2 class="view-title">3. Product Catalog &amp; Article Lookup</h2>
-        <p class="view-lead">Search 103 official chemical, adhesive, fastener, and abrasive part numbers.</p>
-      </div>
-      <div class="search-wrap">
-        <label class="input-persistent-label" for="catSearch">SEARCH BY PRODUCT NAME, CATEGORY, OR ARTICLE NUMBER:</label>
-        <div class="search-input-group">
-          <input id="catSearch" class="search-input" type="search" placeholder="e.g. 0893106050, degreaser, grease, threadlocker..." />
-          <button id="btnCatSearchClear" class="btn-search-clear" type="button">Clear</button>
+      <div class="view-content">
+        <div class="view-header-bar">
+          <div>
+            <h2 class="view-title">Product Catalog &amp; Part Numbers</h2>
+            <p class="view-subtitle">103 official shop chemicals, penetrants, greases, gasket makers, and shop supplies.</p>
+          </div>
+        </div>
+
+        <div class="catalog-search-wrap">
+          <label for="catSearch" class="label-bold">SEARCH BY NAME OR PART NUMBER:</label>
+          <div class="input-with-clear">
+            <input type="text" id="catSearch" class="input-field-large" placeholder="Example: Rost Off, Brake Cleaner, 0890, 0893..." />
+            <button id="btnCatSearchClear" class="btn-clear-large">Clear</button>
+          </div>
+        </div>
+
+        <div id="catCats" class="filter-chips-row">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <div id="catOut" class="catalog-cards-stack">
+          <!-- Rendered dynamically -->
         </div>
       </div>
-      <div id="catCats" class="chip-grid"></div>
-      <div id="catOut" class="cat-list"></div>
     </section>
 
-    <!-- COLD CALL COCKPIT -->
-    <section id="view-cockpit" class="view">
-      <div class="view-header-row">
-        <h2 class="view-title">4. Cold Call Talk Tracks &amp; Field Flow</h2>
-        <p class="view-lead">Step-by-step scripts from the parking lot scan through door opening and live presentation.</p>
-      </div>
-      <div id="cockpitOut" class="flow-list"></div>
-    </section>
-
-    <!-- OBJECTIONS -->
-    <section id="view-objections" class="view">
-      <div class="view-header-row">
-        <h2 class="view-title">5. Objection Handling Comebacks</h2>
-        <p class="view-lead">Word-for-word responses for supplier loyalty, price pushbacks, and corporate purchasing brushes.</p>
-      </div>
-      <div class="search-wrap">
-        <label class="input-persistent-label" for="objSearch">SEARCH OBJECTION KEYWORDS:</label>
-        <div class="search-input-group">
-          <input id="objSearch" class="search-input" type="search" placeholder="e.g. price, happy, supplier, time, budget..." />
-          <button id="btnObjSearchClear" class="btn-search-clear" type="button">Clear</button>
-        </div>
-      </div>
-      <div id="objOut" class="obj-list"></div>
-    </section>
-
-    <!-- PRECALL CHECKLIST -->
+    <!-- ==================== VIEW: PRE-CALL CHECKLIST ==================== -->
     <section id="view-precall" class="view">
-      <div class="view-header-row">
-        <h2 class="view-title">6. Pre-Call Preparation Checklist</h2>
-        <p class="view-lead">Review and check off these 7 physical preparation steps before stepping into the customer's shop.</p>
-      </div>
-      <ul id="precallOut" class="precall-list"></ul>
-      <div class="precall-footer">
-        <button id="precallReset" class="btn-large danger-outline">Reset Checklist for Next Call</button>
+      <div class="view-content">
+        <div class="view-header-bar">
+          <div>
+            <h2 class="view-title">Quick 30-Second Pre-Call Checklist</h2>
+            <p class="view-subtitle">Review these 5 items in your truck before walking into the customer's shop.</p>
+          </div>
+          <button id="precallReset" class="btn-action-secondary">Reset All Checks</button>
+        </div>
+
+        <div id="precallOut" class="checklist-stack">
+          <!-- Rendered dynamically -->
+        </div>
       </div>
     </section>
 
-    <!-- DAILY GAME PLAN -->
+    <!-- ==================== VIEW: OBJECTIONS ==================== -->
+    <section id="view-objections" class="view">
+      <div class="view-content">
+        <div class="view-header-bar">
+          <div>
+            <h2 class="view-title">Objection Handling Comebacks</h2>
+            <p class="view-subtitle">Word-for-word comebacks for when a shop owner or mechanic says no.</p>
+          </div>
+        </div>
+
+        <div class="search-box-row">
+          <label for="objSearch" class="label-bold">SEARCH OBJECTIONS:</label>
+          <div class="input-with-clear">
+            <input type="text" id="objSearch" class="input-field-large" placeholder="Type an objection (e.g. price, happy, don't need)..." />
+            <button id="btnObjSearchClear" class="btn-clear-large">Clear</button>
+          </div>
+        </div>
+
+        <div id="objOut" class="objections-stack">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW: GAME PLANS ==================== -->
     <section id="view-gameplan" class="view">
-      <div class="view-header-row">
-        <h2 class="view-title">7. Customer Type Game Plans</h2>
-        <p class="view-lead">Select the customer's business archetype to load specific pain points and opening moves.</p>
+      <div class="view-content">
+        <div class="view-header-bar">
+          <div>
+            <h2 class="view-title">Customer Guide by Shop Type</h2>
+            <p class="view-subtitle">Select a customer trade to see what items they buy most and how to pitch them.</p>
+          </div>
+        </div>
+
+        <div id="custTypeGrid" class="filter-chips-row">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <div id="gameplanOut" class="gameplans-stack">
+          <!-- Rendered dynamically -->
+        </div>
       </div>
-      <div id="custTypeGrid" class="chip-grid"></div>
-      <div id="gameplanOut" class="plan-out"></div>
     </section>
 
-    <!-- ANGLE FINDER -->
+    <!-- ==================== VIEW: ANGLE FINDER ==================== -->
     <section id="view-anglefinder" class="view">
-      <div class="view-header-row">
-        <h2 class="view-title">8. Non-Traditional Angle Finder</h2>
-        <p class="view-lead">Uncover high-volume chemical and hardware consumption in facilities that aren't traditional repair shops.</p>
-      </div>
-      <div id="angleGrid" class="chip-grid"></div>
-      <div id="angleOut" class="plan-out"></div>
-    </section>
+      <div class="view-content">
+        <div class="view-header-bar">
+          <div>
+            <h2 class="view-title">New Customer Ideas by Industry</h2>
+            <p class="view-subtitle">Look up non-traditional businesses in your territory that consume chemicals and maintenance supplies.</p>
+          </div>
+        </div>
 
-    <!-- METHODOLOGY -->
-    <section id="view-methodology" class="view">
-      <div class="view-header-row">
-        <h2 class="view-title">9. Sales Training: How to Persuade and Get Paid</h2>
-        <p class="view-lead">The complete 6-module field sales training curriculum based on the Phil M. Jones sales method.</p>
-      </div>
-      <div id="methodPreview" class="accordion"></div>
-    </section>
+        <div id="angleGrid" class="filter-chips-row">
+          <!-- Rendered dynamically -->
+        </div>
 
-    <!-- PLAYBOOK -->
-    <section id="view-playbook" class="view">
-      <div class="view-header-row">
-        <h2 class="view-title">10. Prospecting Playbook Fundamentals</h2>
-        <p class="view-lead">Core ground rules for territory sales reps executing daily in-person calls.</p>
+        <div id="angleOut" class="gameplans-stack">
+          <!-- Rendered dynamically -->
+        </div>
       </div>
-      <div id="playbookOut" class="accordion"></div>
     </section>
 
   </main>
 
-  <!-- ===== MODALS ===== -->
+  <!-- ==================== MODALS ==================== -->
 
-  <!-- Modal: Start Location / GPS -->
+  <!-- START LOCATION MODAL -->
   <div id="modalStartLoc" class="modal-backdrop" style="display:none;">
     <div class="modal-card">
-      <div class="modal-head">
-        <h3 class="modal-title">Select Route Starting Point</h3>
-        <button class="modal-close" data-close-modal="modalStartLoc">[Close]</button>
+      <div class="modal-top">
+        <h3 class="modal-heading">Choose Route Starting Point</h3>
+        <button class="btn-close-modal" onclick="closeModal('modalStartLoc')">&times;</button>
       </div>
-      <div class="modal-body">
-        <p class="modal-desc">Set where your route starts today to calculate the shortest driving sequence.</p>
-        <button id="btnUseGps" class="btn-modal-action gps-btn">Use Current Device GPS Location</button>
-        <div class="modal-divider"><span>OR SELECT A REGIONAL TERRITORY HUB</span></div>
-        <div class="preset-hubs-grid" id="presetHubsGrid"></div>
-        <div class="modal-divider"><span>OR ENTER CUSTOM COORDINATES</span></div>
-        <div class="form-group">
-          <label class="form-label" for="inputCustomStartName">Location Name / Address Description</label>
-          <input id="inputCustomStartName" type="text" placeholder="e.g. Home Depot Lot" />
+      <div class="modal-inner">
+        <button id="btnUseGps" class="btn-action-primary btn-block">
+          USE MY CURRENT VEHICLE GPS LOCATION
+        </button>
+        <div class="or-divider"><span>OR CHOOSE A TOWN HUB</span></div>
+        <div id="presetHubsGrid" class="preset-hubs-column">
+          <!-- Rendered dynamically -->
         </div>
-        <div class="form-row form-row-2">
-          <div class="form-group">
-            <label class="form-label" for="inputCustomStartLat">Latitude</label>
-            <input id="inputCustomStartLat" type="number" step="any" placeholder="44.0153" />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="inputCustomStartLng">Longitude</label>
-            <input id="inputCustomStartLng" type="number" step="any" placeholder="-73.1672" />
-          </div>
-        </div>
-        <div class="modal-btn-row">
-          <button id="btnSaveCustomStart" class="btn-large primary">Save Starting Location</button>
-          <button class="btn-large secondary" data-close-modal="modalStartLoc">Cancel</button>
-        </div>
+      </div>
+      <div class="modal-bottom">
+        <button class="btn-action-secondary" onclick="closeModal('modalStartLoc')">Close</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal: Add / Edit Prospect -->
+  <!-- ADD / EDIT PROSPECT MODAL -->
   <div id="modalAddProspect" class="modal-backdrop" style="display:none;">
     <div class="modal-card">
-      <div class="modal-head">
-        <h3 class="modal-title" id="modalProspectTitle">Add New Customer Record</h3>
-        <button class="modal-close" data-close-modal="modalAddProspect">[Close]</button>
+      <div class="modal-top">
+        <h3 id="modalProspectTitle" class="modal-heading">Add New Customer Account</h3>
+        <button class="btn-close-modal" onclick="closeModal('modalAddProspect')">&times;</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-inner">
         <form id="formAddProspect">
-          <input type="hidden" id="inputProspectId" value="" />
+          <input type="hidden" id="inputProspectId" />
           <div class="form-group">
-            <label class="form-label" for="inputProspectName">Company / Business Name *</label>
-            <input id="inputProspectName" type="text" required placeholder="e.g. Green Mountain Fleet Service" />
-          </div>
-          <div class="form-row form-row-2">
-            <div class="form-group">
-              <label class="form-label" for="inputProspectType">Business Category *</label>
-              <input id="inputProspectType" type="text" required placeholder="e.g. Fleet / Diesel Repair" />
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="selectProspectSeg">Customer Segment *</label>
-              <select id="selectProspectSeg" required>
-                <option value="auto">Auto / Body Shop</option>
-                <option value="food">Food &amp; Beverage</option>
-                <option value="facilities">Plant Facilities</option>
-                <option value="schoolbus">School Bus &amp; Fleet</option>
-                <option value="forklift">Ag &amp; Heavy Equipment</option>
-                <option value="carwash">Car Wash Facilities</option>
-                <option value="precision">Precision Manufacturing</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row form-row-2">
-            <div class="form-group">
-              <label class="form-label" for="inputProspectAddr">Street Address / Town *</label>
-              <input id="inputProspectAddr" type="text" required placeholder="e.g. 45 Court St, Middlebury, VT" />
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="inputProspectPhone">Direct Phone Number</label>
-              <input id="inputProspectPhone" type="tel" placeholder="e.g. (802) 555-0100" />
-            </div>
-          </div>
-          <div class="form-row form-row-2">
-            <div class="form-group">
-              <label class="form-label" for="inputProspectLat">Latitude (Optional)</label>
-              <input id="inputProspectLat" type="number" step="any" placeholder="Auto-calculated if blank" />
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="inputProspectLng">Longitude (Optional)</label>
-              <input id="inputProspectLng" type="number" step="any" placeholder="Auto-calculated if blank" />
-            </div>
+            <label for="inputProspectName" class="label-bold">BUSINESS NAME *</label>
+            <input type="text" id="inputProspectName" class="input-field-large" required placeholder="e.g. Miller's Automotive Repair" />
           </div>
           <div class="form-group">
-            <label class="form-label" for="inputProspectHot">Opportunities / What They Burn *</label>
-            <input id="inputProspectHot" type="text" required placeholder="e.g. Brake cleaner, grease, hydraulic line seals" />
+            <label for="inputProspectType" class="label-bold">BUSINESS TYPE / TRADE *</label>
+            <input type="text" id="inputProspectType" class="input-field-large" required placeholder="e.g. Independent Auto Repair, Fleet Garage" />
           </div>
-          <div class="modal-btn-row">
-            <button type="submit" class="btn-large primary">Save Customer Record</button>
-            <button type="button" id="btnDeleteProspect" class="btn-large danger" style="display:none;">Delete Account</button>
-            <button type="button" class="btn-large secondary" data-close-modal="modalAddProspect">Cancel</button>
+          <div class="form-group">
+            <label for="selectProspectSeg" class="label-bold">CUSTOMER CATEGORY *</label>
+            <select id="selectProspectSeg" class="input-field-large">
+              <option value="auto">Auto Repair &amp; Service</option>
+              <option value="autobody">Auto Body &amp; Collision</option>
+              <option value="heavy">Heavy Truck &amp; Equipment</option>
+              <option value="fleet">Municipal &amp; Bus Fleet</option>
+              <option value="farm">Agriculture &amp; Tractor</option>
+              <option value="other">General Commercial / Other</option>
+            </select>
           </div>
+          <div class="form-group">
+            <label for="inputProspectAddr" class="label-bold">STREET ADDRESS &amp; TOWN *</label>
+            <input type="text" id="inputProspectAddr" class="input-field-large" required placeholder="e.g. 145 Exchange St, Middlebury, VT" />
+          </div>
+          <div class="form-group">
+            <label for="inputProspectPhone" class="label-bold">PHONE NUMBER</label>
+            <input type="tel" id="inputProspectPhone" class="input-field-large" placeholder="e.g. (802) 388-1234" />
+          </div>
+          <div class="form-group">
+            <label for="inputProspectHot" class="label-bold">HOT OPPORTUNITY / WHAT THEY BUY</label>
+            <textarea id="inputProspectHot" class="input-field-large" rows="3" placeholder="e.g. Uses 2 cases of brake cleaner per week. Heavy grease buyer."></textarea>
+          </div>
+          <input type="hidden" id="inputProspectLat" />
+          <input type="hidden" id="inputProspectLng" />
         </form>
       </div>
+      <div class="modal-bottom">
+        <button type="submit" form="formAddProspect" class="btn-action-primary">Save Account</button>
+        <button type="button" id="btnDeleteProspect" class="btn-action-danger" style="display:none;">Delete Account</button>
+        <button type="button" class="btn-action-secondary" onclick="closeModal('modalAddProspect')">Cancel</button>
+      </div>
     </div>
   </div>
 
-  <!-- Modal: Import / Export Territory -->
+  <!-- IMPORT / EXPORT MODAL -->
   <div id="modalImportExport" class="modal-backdrop" style="display:none;">
     <div class="modal-card">
-      <div class="modal-head">
-        <h3 class="modal-title">Territory Data Management</h3>
-        <button class="modal-close" data-close-modal="modalImportExport">[Close]</button>
+      <div class="modal-top">
+        <h3 class="modal-heading">Import or Export Customer List</h3>
+        <button class="btn-close-modal" onclick="closeModal('modalImportExport')">&times;</button>
       </div>
-      <div class="modal-body">
-        <p class="modal-desc">Export your territory customer list or import spreadsheets (CSV) from your computer.</p>
-        <div class="import-export-btn-stack">
-          <button id="btnExportCSV" class="btn-large">Export Customer List to Spreadsheet (CSV)</button>
-          <button id="btnExportJSON" class="btn-large">Export Full Backup to JSON File</button>
-          <label class="btn-large file-picker-label">
-            <span>Import CSV / JSON Customer File</span>
-            <input id="importFileInput" type="file" accept=".csv,.json" style="display:none;" />
-          </label>
-          <button id="btnResetProspects" class="btn-large danger-outline">Reset to Default 22 Territory Accounts</button>
-          <button class="btn-large secondary" data-close-modal="modalImportExport">Close Window</button>
+      <div class="modal-inner">
+        <p class="modal-text">Download a spreadsheet of your customer directory or import accounts from an Excel CSV file.</p>
+        
+        <div class="btn-stack-gap">
+          <button id="btnExportCSV" class="btn-action-secondary btn-block">
+            Download Customer Spreadsheet (CSV)
+          </button>
+          <button id="btnExportJSON" class="btn-action-secondary btn-block">
+            Download Full Data Backup (JSON)
+          </button>
         </div>
+
+        <div class="or-divider"><span>IMPORT FROM SPREADSHEET</span></div>
+
+        <div class="form-group">
+          <label for="importFileInput" class="label-bold">CHOOSE EXCEL CSV OR JSON FILE:</label>
+          <input type="file" id="importFileInput" accept=".csv,.json" class="input-field-large" />
+        </div>
+
+        <div class="or-divider"><span>RESTORE DEFAULTS</span></div>
+        <button id="btnResetProspects" class="btn-action-danger btn-block">
+          Reset to Baseline Customer List
+        </button>
+      </div>
+      <div class="modal-bottom">
+        <button class="btn-action-secondary" onclick="closeModal('modalImportExport')">Close</button>
       </div>
     </div>
   </div>
 
-  <!-- Scripts -->
-  <script src="vendor/leaflet/leaflet.js"></script>
+  <!-- SCRIPTS -->
+  <script src="vendor/leaflet/leaflet.js" onerror="this.onerror=null;this.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';"></script>
+  <script src="js/data.js?v=30"></script>
+  <script src="js/route.js?v=30"></script>
+  <script src="js/battlecards.js?v=30"></script>
+  <script src="js/catalog.js?v=30"></script>
+  <script src="js/app.js?v=30"></script>
+
+  <!-- Force Cache Purge & Service Worker Registration -->
   <script>
-    if (typeof L === 'undefined') {
-      const s = document.createElement('script');
-      s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      s.async = false;
-      document.head.appendChild(s);
+    // Hard cache purge handler
+    const btnUpdate = document.getElementById('btnForceUpdate');
+    if (btnUpdate) {
+      btnUpdate.onclick = async () => {
+        btnUpdate.textContent = 'Updating...';
+        try {
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+          }
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for (let r of regs) await r.unregister();
+          }
+          localStorage.removeItem('sc-theme');
+        } catch (e) {}
+        window.location.reload(true);
+      };
     }
-  </script>
-  <script src="js/data.js"></script>
-  <script src="js/route.js"></script>
-  <script src="js/battlecards.js"></script>
-  <script src="js/catalog.js"></script>
-  <script src="js/app.js"></script>
-  <script>
+
+    // Force remove dark mode class if stuck in localStorage
+    try {
+      localStorage.removeItem('sc-theme');
+      document.body.classList.remove('dark');
+    } catch(e) {}
+
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js?v=30').then((reg) => {
+          reg.onupdatefound = () => {
+            const installing = reg.installing;
+            if (installing) {
+              installing.onstatechange = () => {
+                if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                  window.location.reload(true);
+                }
+              };
+            }
+          };
+        }).catch(() => {});
+      });
     }
   </script>
 </body>
